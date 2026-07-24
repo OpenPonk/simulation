@@ -181,14 +181,14 @@ OPSimulationGUI >> initializeLayout [
 	| items gridLayout counter |
 	gridLayout := SpGridLayout new.
 	items := buttons.
-	buttons size odd ifTrue: [ 
+	buttons size odd ifTrue: [
 		items := items copyWith: SpNullPresenter new ].
 	counter := 0.
-	items pairsDo: [ :odd :even | 
-		counter := counter + 1.
-		gridLayout add: odd at: 1 @ counter.
+	items pairsDo: [ :odd :even |
+			counter := counter + 1.
+			gridLayout add: odd atPoint: 1 @ counter.
 
-		gridLayout add: even at: 2 @ counter ].
+			gridLayout add: even atPoint: 2 @ counter ].
 	self layout: gridLayout
 ]
 
