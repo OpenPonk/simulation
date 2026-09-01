@@ -58,7 +58,7 @@ OPToken >> element: anElement [
 	self diagramSimulator: (element ifNotNil: [ element diagramSimulator ] ifNil: [ nil ])
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'stepping' }
 OPToken >> fromSelf [
 	"stepping settings
 	before: none

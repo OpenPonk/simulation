@@ -1,5 +1,6 @@
 "
-A DCSimulatorTest is a test class for testing the behavior of DCSimulator
+Unit tests for OPSimulator. 
+Verifies the core stepping, repeating, delay management, and action execution logic of the simulator.
 "
 Class {
 	#name : 'OPSimulatorTest',
@@ -41,6 +42,8 @@ OPSimulatorTest >> prepareOneSteppable [
 
 { #category : 'running' }
 OPSimulatorTest >> setUp [
+
+	super setUp.
 	simulator := self controllerClass new
 ]
 
@@ -106,6 +109,7 @@ OPSimulatorTest >> testDoAction [
 
 { #category : 'tests' }
 OPSimulatorTest >> testInstanceCreation [
+
 	self assert: simulator delay >= 0.
-	self shouldnt: [ simulator addAction: [ :item |  ] ] raise: Exception
+	simulator addAction: [ :item |  ]
 ]

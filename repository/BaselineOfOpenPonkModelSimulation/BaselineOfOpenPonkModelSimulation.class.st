@@ -1,3 +1,6 @@
+"
+Metacello baseline for the OpenPonk Model Simulation package, defining core dependencies for simulation capabilities.
+"
 Class {
 	#name : 'BaselineOfOpenPonkModelSimulation',
 	#superclass : 'BaselineOf',

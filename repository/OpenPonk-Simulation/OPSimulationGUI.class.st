@@ -29,7 +29,7 @@ Class {
 	#package : 'OpenPonk-Simulation'
 }
 
-{ #category : 'as yet unclassified' }
+{ #category : 'layout' }
 OPSimulationGUI class >> defaultLayout [
 
 	^ SpBoxLayout newLeftToRight
@@ -140,11 +140,6 @@ OPSimulationGUI >> closed [
 	diagramSimulator := nil
 ]
 
-{ #category : 'building widgets' }
-OPSimulationGUI >> createWidgets [
-	buttons do: [ :item | self assign: item to: ('button' , item hash asString) asSymbol ]
-]
-
 { #category : 'accessing' }
 OPSimulationGUI >> diagramController [
 	^ diagramController
@@ -215,11 +210,7 @@ OPSimulationGUI >> initializeWithController [
 	self loadSimulation.
 	self whenWindowClosedUnsubscribeFrom: self diagramModel.
 	self diagramModel
-		weakWhen: OPElementAdded
-		send: #reloadController
-		to: self.
-	self diagramModel
-		weakWhen: OPElementRemoved
+		weakWhen: OPModelChildrenChangedEvent
 		send: #reloadController
 		to: self.
 	self addButtons

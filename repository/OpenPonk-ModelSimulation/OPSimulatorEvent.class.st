@@ -2,7 +2,7 @@
 I'm abstract event of simulators
 
     Instance Variables
-	simulator:		simulator which did that
+    simulator:        simulator which did that
 "
 Class {
 	#name : 'OPSimulatorEvent',

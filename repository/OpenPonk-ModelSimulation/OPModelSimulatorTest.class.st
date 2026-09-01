@@ -1,5 +1,6 @@
 "
-A DCModelSimulatorTest is a test class for testing the behavior of DCModelSimulator
+Unit tests for OPModelSimulator. 
+Verifies priority filtering, stepping orders, token management, and item selection logic during model simulation.
 "
 Class {
 	#name : 'OPModelSimulatorTest',

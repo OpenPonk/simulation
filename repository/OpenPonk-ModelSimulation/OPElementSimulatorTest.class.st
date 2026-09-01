@@ -1,5 +1,6 @@
 "
-A DCElementSimulatorTest is a test class for testing the behavior of DCElementSimulator
+Unit tests for OPElementSimulator. 
+Verifies the simulation state, connected items mapping, and token handling for individual diagram elements.
 "
 Class {
 	#name : 'OPElementSimulatorTest',
@@ -11,7 +12,7 @@ Class {
 
 { #category : 'hooks' }
 OPElementSimulatorTest >> controllerClass [
-	^ OPDummySubclassOfDCElementSimulator
+	^ OPDummySubclassOfOPElementSimulator
 ]
 
 { #category : 'hooks' }
@@ -21,26 +22,32 @@ OPElementSimulatorTest >> prepareOneSimulable [
 
 { #category : 'running' }
 OPElementSimulatorTest >> setUp [
+
 	super setUp.
-	simulator model: OPDummyDCElement new.
+	simulator model: OPDummyOPElement new.
 	simulator
-		addToken: OPDummyDCToken new;
-		addToken: OPDummyDCToken new
+		addToken: OPDummyOPToken new;
+		addToken: OPDummyOPToken new
 ]
 
 { #category : 'tests' }
 OPElementSimulatorTest >> testAccessing [
-	| assertTokens |
-	assertTokens := [ :amount | 
-	self assert: simulator tokenCount = amount.
-	self assert: simulator tokens size = amount.
-	self assert: simulator steppableTokens size = 0.
-	self assert: simulator simulableTokens size = amount.
-	self assert: (simulator tokens allSatisfy: [ :token | token element = simulator ]) ].
 
-	simulator addToken: OPDummyDCToken new.
+	| assertTokens |
+	assertTokens := [ :amount |
+		                self assert: simulator tokenCount equals: amount.
+		                self assert: simulator tokens size equals: amount.
+		                self assertEmpty: simulator steppableTokens.
+		                self
+			                assert: simulator simulableTokens size
+			                equals: amount.
+		                self assert:
+			                (simulator tokens allSatisfy: [ :token |
+				                 token element = simulator ]) ].
+
+	simulator addToken: OPDummyOPToken new.
 	assertTokens value: 3.
-	simulator addToken: OPDummyDCToken new.
+	simulator addToken: OPDummyOPToken new.
 	assertTokens value: 4.
 	simulator removeToken: simulator tokens first.
 	assertTokens value: 3.
@@ -50,29 +57,38 @@ OPElementSimulatorTest >> testAccessing [
 
 { #category : 'tests' }
 OPElementSimulatorTest >> testConnected [
-	self assert: simulator outgoing size = 0.
-	self assert: simulator incoming size = 0.
-	simulator addIncoming: self controllerClass new.
-	self assert: simulator incoming size = 1.
-	simulator addOutgoing: self controllerClass new.
-	self assert: simulator outgoing size = 1.
-	self assert: simulator incoming first outgoing first = simulator.
-	self assert: simulator outgoing first incoming first = simulator.
-	self assert: simulator outgoing first outgoing size = 0.
-	self assert: simulator incoming first incoming size = 0
+
+	| incoming outgoing |
+	self assertEmpty: simulator outgoing.
+	self assertEmpty: simulator incoming.
+
+	incoming := self controllerClass new.
+	simulator addIncoming: incoming.
+	self assert: simulator incoming size equals: 1.
+
+	outgoing := self controllerClass new.
+	simulator addOutgoing: outgoing.
+	self assert: simulator outgoing size equals: 1.
+
+	self assert: incoming outgoing first equals: simulator.
+	self assert: outgoing incoming first equals: simulator.
+	self assertEmpty: outgoing outgoing.
+	self assertEmpty: incoming incoming
 ]
 
 { #category : 'tests' }
 OPElementSimulatorTest >> testStates [
-	self assert: simulator model state = 1.
+
+	self assert: simulator model state equals: 1.
 	simulator saveState.
-	self assert: simulator model state = 2.
+	self assert: simulator model state equals: 2.
 	simulator loadState.
-	self assert: simulator model state = 1
+	self assert: simulator model state equals: 1
 ]
 
 { #category : 'tests' }
 OPElementSimulatorTest >> testStep [
+
 	simulator
 		fromSelf;
 		orderAny;
@@ -80,10 +96,10 @@ OPElementSimulatorTest >> testStep [
 		selectAll;
 		addAction: [ :item | item saveState ].
 
-	self assert: simulator model state = 1.
+	self assert: simulator model state equals: 1.
 	simulator step.
-	self assert: simulator model state = 1.
+	self assert: simulator model state equals: 1.
 	simulator steppable: true.
 	simulator step.
-	self assert: simulator model state = 2
+	self assert: simulator model state equals: 2
 ]

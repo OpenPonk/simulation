@@ -1,3 +1,6 @@
+"
+Metacello baseline aggregating the loading configurations for OpenPonk simulation-related packages and plugins.
+"
 Class {
 	#name : 'BaselineOfOpenPonkSimulation',
 	#superclass : 'BaselineOf',

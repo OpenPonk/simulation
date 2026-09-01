@@ -182,22 +182,22 @@ OPElementSimulator >> setDefaultStepping [
 	self fromSelf
 ]
 
-{ #category : 'tokens' }
+{ #category : 'accessing' }
 OPElementSimulator >> simulableTokens [
 	^ tokens select: [ :token | token isSimulable ]
 ]
 
-{ #category : 'tokens' }
+{ #category : 'accessing' }
 OPElementSimulator >> steppableTokens [
 	^ tokens select: [ :token | token isSteppable ]
 ]
 
-{ #category : 'tokens' }
+{ #category : 'accessing' }
 OPElementSimulator >> tokenCount [
 	^ tokens size
 ]
 
-{ #category : 'tokens' }
+{ #category : 'accessing' }
 OPElementSimulator >> tokens [
 	^ tokens
 ]
