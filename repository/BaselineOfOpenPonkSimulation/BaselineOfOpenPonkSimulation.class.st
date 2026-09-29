@@ -15,11 +15,11 @@ BaselineOfOpenPonkSimulation >> baseline: spec [
 	spec for: #common do: [
 		spec
 			baseline: 'OpenPonk'
-			with: [ spec repository: 'github://openponk/openponk:v4.0.x' ].
+			with: [ spec repository: 'github://openponk/openponk:v5.0.0' ].
 		spec
 			baseline: 'OpenPonkModelSimulation'
 			with: [
-			spec repository: 'github://openponk/simulation' ].
+			spec repository: 'github://openponk/simulation:v5.0.0' ].
 		spec
 			package: 'OpenPonk-Simulation'
 			with: [ spec requires: #( 'OpenPonkModelSimulation' ) ].
