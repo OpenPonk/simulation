@@ -1,10 +1,14 @@
+"
+Metacello baseline aggregating the loading configurations for OpenPonk simulation-related packages and plugins.
+"
 Class {
-	#name : #BaselineOfOpenPonkSimulation,
-	#superclass : #BaselineOf,
-	#category : #BaselineOfOpenPonkSimulation
+	#name : 'BaselineOfOpenPonkSimulation',
+	#superclass : 'BaselineOf',
+	#category : 'BaselineOfOpenPonkSimulation',
+	#package : 'BaselineOfOpenPonkSimulation'
 }
 
-{ #category : #accessing }
+{ #category : 'baselines' }
 BaselineOfOpenPonkSimulation >> baseline: spec [
 
 	<baseline>
@@ -15,7 +19,7 @@ BaselineOfOpenPonkSimulation >> baseline: spec [
 		spec
 			baseline: 'OpenPonkModelSimulation'
 			with: [
-			spec repository: 'github://JanBliznicenko/openponk-simulation:v4.0.x' ].
+			spec repository: 'github://openponk/simulation' ].
 		spec
 			package: 'OpenPonk-Simulation'
 			with: [ spec requires: #( 'OpenPonkModelSimulation' ) ].

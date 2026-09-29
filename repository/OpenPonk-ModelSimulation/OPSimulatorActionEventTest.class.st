@@ -1,5 +1,6 @@
 "
-A DCSimulatorActionEventTest is a test class for testing the behavior of DCSimulatorActionEvent
+Unit tests for OPSimulatorActionEvent. 
+Verifies the instantiation and behavior of action-related simulator events.
 "
 Class {
 	#name : 'OPSimulatorActionEventTest',

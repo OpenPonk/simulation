@@ -1,5 +1,6 @@
 "
-A DCSimulatorRunEventTest is a test class for testing the behavior of DCSimulatorRunEvent
+Unit tests for OPSimulatorRunEvent. 
+Verifies the instantiation and property management (such as repeat limits and delays) of run-related simulator events.
 "
 Class {
 	#name : 'OPSimulatorRunEventTest',

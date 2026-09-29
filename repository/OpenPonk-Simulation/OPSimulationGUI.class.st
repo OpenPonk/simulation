@@ -29,7 +29,7 @@ Class {
 	#package : 'OpenPonk-Simulation'
 }
 
-{ #category : 'as yet unclassified' }
+{ #category : 'layout' }
 OPSimulationGUI class >> defaultLayout [
 
 	^ SpBoxLayout newLeftToRight
@@ -41,10 +41,11 @@ OPSimulationGUI class >> diagramController: aDiagramController [
 
 	| gui |
 	gui := self allInstances
-		detect:
-			[ :anyInstance | anyInstance isOpen and: [ anyInstance diagramController == aDiagramController ] ]
-		ifNone: [ self newForController: aDiagramController ].
-	gui activate.	"causes simulation GUI to get on top of screen"
+		       detect: [ :anyInstance |
+			       anyInstance isOpen and: [
+				       anyInstance diagramController == aDiagramController ] ]
+		       ifNone: [ self newForController: aDiagramController ].
+	gui activate. "causes simulation GUI to get on top of screen"
 	^ gui
 ]
 
@@ -133,20 +134,10 @@ OPSimulationGUI >> close [
 
 { #category : 'private - updating' }
 OPSimulationGUI >> closed [
-	self diagram announcer unsubscribe: self.
+	self diagramModel announcer unsubscribe: self.
 	self diagramSimulator loadState.
 	diagramController := nil.
 	diagramSimulator := nil
-]
-
-{ #category : 'building widgets' }
-OPSimulationGUI >> createWidgets [
-	buttons do: [ :item | self assign: item to: ('button' , item hash asString) asSymbol ]
-]
-
-{ #category : 'accessing' }
-OPSimulationGUI >> diagram [
-	^ self diagramController model
 ]
 
 { #category : 'accessing' }
@@ -156,8 +147,15 @@ OPSimulationGUI >> diagramController [
 
 { #category : 'accessing' }
 OPSimulationGUI >> diagramController: aDiagramController [
+
 	diagramController := aDiagramController.
+	self application: aDiagramController editor application.
 	self initializeWithController
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> diagramModel [
+	^ self diagramController model
 ]
 
 { #category : 'accessing' }
@@ -178,14 +176,14 @@ OPSimulationGUI >> initializeLayout [
 	| items gridLayout counter |
 	gridLayout := SpGridLayout new.
 	items := buttons.
-	buttons size odd ifTrue: [ 
+	buttons size odd ifTrue: [
 		items := items copyWith: SpNullPresenter new ].
 	counter := 0.
-	items pairsDo: [ :odd :even | 
-		counter := counter + 1.
-		gridLayout add: odd at: 1 @ counter.
+	items pairsDo: [ :odd :even |
+			counter := counter + 1.
+			gridLayout add: odd atPoint: 1 @ counter.
 
-		gridLayout add: even at: 2 @ counter ].
+			gridLayout add: even atPoint: 2 @ counter ].
 	self layout: gridLayout
 ]
 
@@ -199,9 +197,10 @@ OPSimulationGUI >> initializePresenters [
 { #category : 'initialization' }
 OPSimulationGUI >> initializeWindow: aWindow [
 
+	super initializeWindow: aWindow.
 	diagramController ifNil: [ ^ self ].
 	aWindow initialExtent: 360 @ (buttons size * self class buttonHeight).
-	aWindow title: 'Simulation of ' , self diagram name
+	aWindow title: 'Simulation of ' , self diagramModel name
 ]
 
 { #category : 'initialization' }
@@ -209,13 +208,10 @@ OPSimulationGUI >> initializeWithController [
 	"creates and prepares simulator for current diagramController"
 
 	self loadSimulation.
-	self diagram
-		when: OPElementAdded
+	self whenWindowClosedUnsubscribeFrom: self diagramModel.
+	self diagramModel
+		weakWhen: OPModelChildrenChangedEvent
 		send: #reloadController
-		to: self.
-	self diagram
-		when: OPElementRemoved
-		send: #reloadController	
 		to: self.
 	self addButtons
 ]
@@ -229,10 +225,10 @@ OPSimulationGUI >> isOpen [
 OPSimulationGUI >> loadSimulation [
 	"prepares simulation - called with every reload"
 
-	diagramSimulator := self simulatorClass model: self diagram
+	diagramSimulator := self simulatorClass model: self diagramModel
 ]
 
-{ #category : 'instance creation' }
+{ #category : 'showing' }
 OPSimulationGUI >> open [
 	self isOpen
 		ifTrue: [ ^ self takeKeyboardFocus ].

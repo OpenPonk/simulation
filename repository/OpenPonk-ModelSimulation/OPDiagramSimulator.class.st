@@ -46,7 +46,7 @@ OPDiagramSimulator class >> resetClassMapping [
 ]
 
 { #category : 'private - creation' }
-OPDiagramSimulator >> allModelElements [
+OPDiagramSimulator >> allModelElementsWithPossibleDiagramElement [
 	"should return all model elements"
 
 	^ model allElements
@@ -61,17 +61,17 @@ OPDiagramSimulator >> createElementFrom: aModel [
 	elements add: (simulatorClass model: aModel diagramSimulator: self)
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> diagramSimulator [
 	^ self
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> elements [
 	^ elements
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> elementsDo: aBlock [
 	self elements do: aBlock
 ]
@@ -134,7 +134,7 @@ OPDiagramSimulator >> isSteppable [
 OPDiagramSimulator >> loadItems [
 	"creates simulators for model elements"
 
-	self allModelElements do: [ :modelElement |
+	self allModelElementsWithPossibleDiagramElement do: [ :modelElement |
 		self createElementFrom: modelElement ].
 	self
 		elementsDo: [ :element | element loadConnectedItems ];
@@ -156,7 +156,7 @@ OPDiagramSimulator >> loadState [
 	self elementsDo: [ :element | element loadState ]
 ]
 
-{ #category : 'private - accessing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> model: aDiagram [
 	"sets and loads model"
 
@@ -173,7 +173,7 @@ OPDiagramSimulator >> saveState [
 	self elementsDo: [ :element | element saveState ]
 ]
 
-{ #category : 'stepping' }
+{ #category : 'initialization' }
 OPDiagramSimulator >> setDefaultStepping [
 	"sets default stepping settings"
 
@@ -181,26 +181,26 @@ OPDiagramSimulator >> setDefaultStepping [
 	self fromSimulableElements
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> simulableElements [
 	"elements with possibility to step"
 
 	^ simulableElements
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> simulableElementsDo: aBlock [
 	self simulableElements do: aBlock
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> simulableTokens [
 	"tokens with possibility to step"
 
 	^ elements flatCollect: [ :el | el simulableTokens ]
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> simulatorOf: aModel [
 	"answers element simulator of model element"
 
@@ -212,28 +212,28 @@ OPDiagramSimulator >> simulatorOf: aModel [
 				ifFalse: [ self error: aModel asString , ' not found' ] ]
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> steppableElements [
 	"elements which can step right now"
 
 	^ simulableElements select: [ :el | el isSteppable ]
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> steppableTokens [
 	"tokens which can step right now"
 
 	^ elements flatCollect: [ :el | el steppableTokens ]
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> tokenCount [
 	"amount of tokens"
 
 	^ elements inject: 0 into: [ :sum :el | el tokenCount + sum ]
 ]
 
-{ #category : 'accesing' }
+{ #category : 'accessing' }
 OPDiagramSimulator >> tokens [
 	"answers collection of tokens"
 

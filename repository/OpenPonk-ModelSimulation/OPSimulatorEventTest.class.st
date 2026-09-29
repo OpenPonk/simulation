@@ -1,5 +1,6 @@
 "
-A DCSimulatorEventTest is a test class for testing the behavior of DCSimulatorEvent
+Unit tests for OPSimulatorEvent. 
+Verifies the basic behavior and instantiation of abstract simulator events.
 "
 Class {
 	#name : 'OPSimulatorEventTest',
@@ -17,7 +18,9 @@ OPSimulatorEventTest class >> isAbstract [
 	^ self == OPSimulatorEventTest
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'running' }
 OPSimulatorEventTest >> setUp [
+
+	super setUp.
 	simulator := Object new
 ]

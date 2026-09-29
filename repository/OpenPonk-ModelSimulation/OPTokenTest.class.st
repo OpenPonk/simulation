@@ -1,5 +1,6 @@
 "
-A DCTokenTest is a test class for testing the behavior of DCToken
+Unit tests for OPToken. 
+Verifies token initialization, property management, and steppability within the simulation framework.
 "
 Class {
 	#name : 'OPTokenTest',
@@ -11,7 +12,7 @@ Class {
 
 { #category : 'hooks' }
 OPTokenTest >> controllerClass [
-	^ OPDummySubclassOfDCToken
+	^ OPDummySubclassOfOPToken
 ]
 
 { #category : 'hooks' }

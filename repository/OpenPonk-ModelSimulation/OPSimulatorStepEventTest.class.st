@@ -1,5 +1,6 @@
 "
-A DCSimulatorStepEventTest is a test class for testing the behavior of DCSimulatorStepEvent
+Unit tests for OPSimulatorStepEvent. 
+Verifies the instantiation and behavior of step-related simulator events.
 "
 Class {
 	#name : 'OPSimulatorStepEventTest',
