@@ -33,6 +33,12 @@ OPDiagramSimulator class >> classFor: aModel [
 			[ self error: aModel class name , ' is not part of model of ' , self name , '.' ]
 ]
 
+{ #category : 'testing' }
+OPDiagramSimulator class >> hasSimulatorFor: aModel [
+	ClassMapping ifNil: [ ClassMapping := self initialClassMapping ].
+	^ ClassMapping includesKey: aModel class
+]
+
 { #category : 'initialization' }
 OPDiagramSimulator class >> initialClassMapping [
 	^ Dictionary new
@@ -130,12 +136,13 @@ OPDiagramSimulator >> isSteppable [
 	^ simulableElements anySatisfy: [ :any | any isSteppable ]
 ]
 
-{ #category : 'private - creation' }
+{ #category : 'initialization' }
 OPDiagramSimulator >> loadItems [
 	"creates simulators for model elements"
 
 	self allModelElementsWithPossibleDiagramElement do: [ :modelElement |
-		self createElementFrom: modelElement ].
+		(self class hasSimulatorFor: modelElement) ifTrue: [
+			self createElementFrom: modelElement ] ].
 	self
 		elementsDo: [ :element | element loadConnectedItems ];
 		loadSimulableElements
