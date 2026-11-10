@@ -65,38 +65,39 @@ OPDiagramSimulatorTest >> testEnumeration [
 
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testLoadingOfModel [
-	self assert: (simulator elements allSatisfy: [ :each | each loaded ]).
-	self assert: simulator elements size = 4.
-	self assert: (simulator elements count: [ :each | each class = OPDummyOPEdgeSimulator ]) = 1.
-	self assert: (simulator elements count: [ :each | each class = OPDummyOPElementSimulator ]) = 3.
 
-	self assert: (simulator simulatorOf: diagram elements last) class = OPDummyOPEdgeSimulator.
+	self assert: (simulator elements allSatisfy: [ :each | each loaded ]).
+	self assert: simulator elements size equals: 4.
+	self assert: (simulator elements count: [ :each | each class = OPDummyOPEdgeSimulator ]) equals: 1.
+	self assert: (simulator elements count: [ :each | each class = OPDummyOPElementSimulator ]) equals: 3.
+	self assert: (simulator simulatorOf: diagram elements last) class equals: OPDummyOPEdgeSimulator.
 	self assert: (simulator elements allSatisfy: [ :each | each diagramSimulator = simulator ])
 ]
 
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testStates [
-	self assert: (simulator elements sum: [ :each | each state ]) = 4.
+
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 4.
 	simulator saveState.
-	self assert: (simulator elements sum: [ :each | each state ]) = 8.
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 8.
 	simulator loadState.
-	self assert: (simulator elements sum: [ :each | each state ]) = 4
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 4
 ]
 
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testStep [
+
 	simulator
 		fromSteppableElements;
 		orderAny;
 		priorityAny;
 		selectAll;
 		addAction: [ :item | item saveState ].
-
-	self assert: (simulator elements sum: [ :each | each state ]) = 4.
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 4.
 	simulator step.
-	self assert: (simulator elements sum: [ :each | each state ]) = 4.
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 4.
 	simulator elements first steppable: true.
 	simulator elements second steppable: true.
 	simulator step.
-	self assert: (simulator elements sum: [ :each | each state ]) = 6
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 6
 ]

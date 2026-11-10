@@ -12,7 +12,8 @@ Class {
 
 { #category : 'tests' }
 OPSimulatorStepEventTest >> testInstanceCreation [
+
 	| event |
 	event := OPSimulatorStepEvent simulator: simulator.
-	self assert: event simulator = simulator
+	self assert: event simulator equals: simulator
 ]

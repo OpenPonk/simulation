@@ -22,12 +22,12 @@ OPTokenTest >> prepareOneSimulable [
 
 { #category : 'tests' }
 OPTokenTest >> testStep [
-	simulator addAction: [ :item | item doState ].
 
-	self assert: simulator state = 1.
+	simulator addAction: [ :item | item doState ].
+	self assert: simulator state equals: 1.
 	simulator step.
-	self assert: simulator state = 1.
+	self assert: simulator state equals: 1.
 	simulator steppable: true.
 	simulator step.
-	self assert: simulator state = 2
+	self assert: simulator state equals: 2
 ]

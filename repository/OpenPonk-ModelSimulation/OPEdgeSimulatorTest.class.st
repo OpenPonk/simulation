@@ -32,6 +32,6 @@ OPEdgeSimulatorTest >> testConnectedAliases [
 	simulator target: self controllerClass new.
 	self assert: simulator source class equals: self controllerClass.
 	self assert: simulator target class equals: self controllerClass.
-	self assert: (simulator source outgoing includes: simulator).
-	self assert: (simulator target incoming includes: simulator)
+	self assertCollection: simulator source outgoing includesAll: { simulator }.
+	self assertCollection: simulator target incoming includesAll: { simulator }
 ]
