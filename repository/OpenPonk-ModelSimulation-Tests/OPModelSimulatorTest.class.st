@@ -1,0 +1,207 @@
+"
+Unit tests for OPModelSimulator. 
+Verifies priority filtering, stepping orders, token management, and item selection logic during model simulation.
+"
+Class {
+	#name : 'OPModelSimulatorTest',
+	#superclass : 'OPSimulatorTest',
+	#category : 'OpenPonk-ModelSimulation-Tests-Simulators',
+	#package : 'OpenPonk-ModelSimulation-Tests',
+	#tag : 'Simulators'
+}
+
+{ #category : 'testing' }
+OPModelSimulatorTest class >> isAbstract [
+	^ self == OPModelSimulatorTest
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testFromAllTokens [
+
+	simulator fromAllTokens.
+	self assert: simulator itemsForPriority size equals: simulator tokenCount
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testFromSelf [
+
+	simulator fromSelf.
+	self assert: simulator itemsForPriority size equals: 1.
+	self assert: simulator itemsForPriority first equals: simulator
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testFromSimulableTokens [
+
+	simulator fromSimulableTokens.
+	self assert: simulator itemsForPriority size equals: simulator simulableTokens size
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testFromSteppableTokens [
+
+	simulator fromSteppableTokens.
+	self assert: simulator itemsForPriority size equals: simulator steppableTokens size
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testOrderAny [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderAny.
+	simulator tokens first priority: 1.
+	self assert: simulator itemsForSelect size equals: simulator tokenCount.
+	self assert: simulator itemsForSelect first priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testOrderByPriority [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority.
+	simulator tokens last priority: 2.
+	simulator tokens first priority: 1.
+	self assert: simulator itemsForSelect size equals: simulator tokenCount.
+	self assert: simulator itemsForSelect first priority equals: 2.
+	self assert: simulator itemsForSelect second priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testOrderByReversedPriority [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByReversedPriority.
+	simulator tokens last priority: 1.
+	simulator tokens first priority: 2.
+	self assert: simulator itemsForSelect size equals: simulator tokenCount.
+	self assert: simulator itemsForSelect last priority equals: 2.
+	self assert: simulator itemsForSelect allButLast last priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testPriorityAny [
+
+	simulator
+		fromAllTokens;
+		priorityAny.
+	simulator tokens first priority: 1.
+	self assert: simulator itemsForOrder size equals: simulator tokenCount
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testPriorityTop [
+
+	simulator
+		fromAllTokens;
+		priorityTop.
+	simulator tokens allButFirstDo: [ :token | token priority: 1 ].
+	self assert: simulator itemsForOrder size equals: simulator tokenCount - 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectAll [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority;
+		selectAll.
+	simulator tokens first priority: 1.
+	simulator tokens second priority: 2.
+	self assert: simulator itemsForAction size equals: simulator tokenCount.
+	self assert: simulator itemsForAction first priority equals: 2.
+	self assert: simulator itemsForAction second priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectFirst [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority;
+		selectFirst.
+	simulator tokens first priority: 1.
+	simulator tokens second priority: 2.
+	self assert: simulator itemsForAction size equals: 1.
+	self assert: simulator itemsForAction first priority equals: 2
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectFirstN [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority;
+		selectFirst: 2.
+	simulator tokens first priority: 1.
+	simulator tokens last priority: 2.
+	self assert: simulator itemsForAction size equals: 2.
+	self assert: simulator itemsForAction first priority equals: 2.
+	self assert: simulator itemsForAction second priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectFromTo [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority;
+		selectFrom: 1 to: 2.
+	simulator tokens first priority: 1.
+	simulator tokens second priority: 2.
+	self assert: simulator itemsForAction size equals: 2.
+	self assert: simulator itemsForAction first priority equals: 2.
+	self assert: simulator itemsForAction second priority equals: 1
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectLast [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByReversedPriority;
+		selectLast.
+	simulator tokens first priority: 1.
+	simulator tokens second priority: 2.
+	self assert: simulator itemsForAction size equals: 1.
+	self assert: simulator itemsForAction first priority equals: 2
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectLastN [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByReversedPriority;
+		selectLast: 2.
+	simulator tokens last priority: 1.
+	simulator tokens first priority: 2.
+	self assert: simulator itemsForAction size equals: 2.
+	self assert: simulator itemsForAction first priority equals: 1.
+	self assert: simulator itemsForAction second priority equals: 2
+]
+
+{ #category : 'tests' }
+OPModelSimulatorTest >> testSelectOne [
+
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderByPriority;
+		selectOne: 2.
+	simulator tokens first priority: 1.
+	simulator tokens second priority: 2.
+	self assert: simulator itemsForAction size equals: 1.
+	self assert: simulator itemsForAction first priority equals: 1
+]

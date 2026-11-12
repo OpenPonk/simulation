@@ -4,9 +4,9 @@ Dummy edge simulator used for testing the connections between source and target 
 Class {
 	#name : 'OPDummyOPEdgeSimulator',
 	#superclass : 'OPDummyOPElementSimulator',
-	#category : 'OpenPonk-ModelSimulation-Tests',
-	#package : 'OpenPonk-ModelSimulation',
-	#tag : 'Tests'
+	#category : 'OpenPonk-ModelSimulation-Tests-Simulators',
+	#package : 'OpenPonk-ModelSimulation-Tests',
+	#tag : 'Simulators'
 }
 
 { #category : 'testing' }

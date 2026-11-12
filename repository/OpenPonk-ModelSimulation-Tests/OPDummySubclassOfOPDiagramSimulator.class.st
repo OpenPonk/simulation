@@ -4,9 +4,9 @@ Concrete subclass of OPDiagramSimulator used strictly for testing class mapping 
 Class {
 	#name : 'OPDummySubclassOfOPDiagramSimulator',
 	#superclass : 'OPDiagramSimulator',
-	#category : 'OpenPonk-ModelSimulation-Tests',
-	#package : 'OpenPonk-ModelSimulation',
-	#tag : 'Tests'
+	#category : 'OpenPonk-ModelSimulation-Tests-Simulators',
+	#package : 'OpenPonk-ModelSimulation-Tests',
+	#tag : 'Simulators'
 }
 
 { #category : 'initialization' }

@@ -7,9 +7,9 @@ Class {
 	#instVars : [
 		'elements'
 	],
-	#category : 'OpenPonk-ModelSimulation-Tests',
-	#package : 'OpenPonk-ModelSimulation',
-	#tag : 'Tests'
+	#category : 'OpenPonk-ModelSimulation-Tests-Simulators',
+	#package : 'OpenPonk-ModelSimulation-Tests',
+	#tag : 'Simulators'
 }
 
 { #category : 'adding' }
