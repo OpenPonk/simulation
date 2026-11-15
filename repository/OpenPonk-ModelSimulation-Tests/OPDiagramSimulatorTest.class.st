@@ -56,22 +56,24 @@ OPDiagramSimulatorTest >> testAccessing [
 
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testEnumeration [
-	self assert: (simulator elements allSatisfy: [ :each | each state = 1 ]).
+
+	self assert: (simulator elements collect: #state as: Array) equals: #( 1 1 1 1 ).
 	simulator elementsDo: [ :each | each saveState ].
-	self assert: (simulator elements allSatisfy: [ :each | each state = 2 ]).
+	self assert: (simulator elements collect: #state as: Array) equals: #( 2 2 2 2 ).
 	simulator simulableElementsDo: [ :each | each saveState ].
-	self assert: (simulator elements allSatisfy: [ :each | each isSimulable not or: [ each state = 3 ] ])
+	self assert: (simulator elements collect: #state as: Array) equals: #( 3 3 3 2 )
 ]
 
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testLoadingOfModel [
 
-	self assert: (simulator elements allSatisfy: [ :each | each loaded ]).
+	simulator elements do: [ :eachElement |
+		self assert: eachElement loaded description: 'Every element simulator must be loaded after model loading' ].
 	self assert: simulator elements size equals: 4.
 	self assert: (simulator elements count: [ :each | each class = OPDummyOPEdgeSimulator ]) equals: 1.
 	self assert: (simulator elements count: [ :each | each class = OPDummyOPElementSimulator ]) equals: 3.
-	self assert: (simulator simulatorOf: diagram elements last) class equals: OPDummyOPEdgeSimulator.
-	self assert: (simulator elements allSatisfy: [ :each | each diagramSimulator = simulator ])
+	self assert: (simulator simulatorOf: diagram elements last) class identicalTo: OPDummyOPEdgeSimulator.
+	simulator elements do: [ :eachElement | self assert: eachElement diagramSimulator identicalTo: simulator ]
 ]
 
 { #category : 'tests' }

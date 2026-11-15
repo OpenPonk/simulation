@@ -110,6 +110,6 @@ OPSimulatorTest >> testDoAction [
 { #category : 'tests' }
 OPSimulatorTest >> testInstanceCreation [
 
-	self assert: simulator delay >= 0.
+	self assert: simulator delay equals: 1000.
 	simulator addAction: [ :item |  ]
 ]

@@ -12,10 +12,17 @@ Class {
 
 { #category : 'tests' }
 OPSimulatorRunEventTest >> testInstanceCreation [
+
 	| event |
 	event := OPSimulatorRunEvent simulator: simulator delay: 2 repeatTimes: 4.
-	self assert: event simulator = simulator & event isLimited & (event repeatTimes = 4) & (event delay = 2).
+	self assert: event simulator identicalTo: simulator.
+	self assert: event isLimited description: 'Run event with repeatTimes must be limited'.
+	self assert: event repeatTimes equals: 4.
+	self assert: event delay equals: 2.
 
 	event := OPSimulatorRunEvent simulator: simulator delay: 2.
-	self assert: event simulator = simulator & event isLimited not & (event delay = 2)
+	self assert: event simulator identicalTo: simulator.
+	self deny: event isLimited description: 'Run event without repeatTimes must not be limited'.
+	self assert: event repeatTimes identicalTo: nil.
+	self assert: event delay equals: 2
 ]

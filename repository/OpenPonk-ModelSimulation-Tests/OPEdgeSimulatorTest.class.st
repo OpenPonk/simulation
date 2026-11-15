@@ -25,13 +25,13 @@ OPEdgeSimulatorTest >> setUp [
 { #category : 'tests' }
 OPEdgeSimulatorTest >> testConnectedAliases [
 
-	self assert: simulator source isNil.
-	self assert: simulator target isNil.
+	self assert: simulator source identicalTo: nil.
+	self assert: simulator target identicalTo: nil.
 
 	simulator source: self controllerClass new.
 	simulator target: self controllerClass new.
-	self assert: simulator source class equals: self controllerClass.
-	self assert: simulator target class equals: self controllerClass.
+	self assert: simulator source class identicalTo: self controllerClass.
+	self assert: simulator target class identicalTo: self controllerClass.
 	self assertCollection: simulator source outgoing includesAll: { simulator }.
 	self assertCollection: simulator target incoming includesAll: { simulator }
 ]

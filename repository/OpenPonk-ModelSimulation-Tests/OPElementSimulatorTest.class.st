@@ -38,12 +38,8 @@ OPElementSimulatorTest >> testAccessing [
 		                self assert: simulator tokenCount equals: amount.
 		                self assert: simulator tokens size equals: amount.
 		                self assertEmpty: simulator steppableTokens.
-		                self
-			                assert: simulator simulableTokens size
-			                equals: amount.
-		                self assert:
-			                (simulator tokens allSatisfy: [ :token |
-				                 token element = simulator ]) ].
+		                self assert: simulator simulableTokens size equals: amount.
+		                simulator tokens do: [ :eachToken | self assert: eachToken element identicalTo: simulator ] ].
 
 	simulator addToken: OPDummyOPToken new.
 	assertTokens value: 3.
