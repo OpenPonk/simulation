@@ -27,7 +27,8 @@ OPEdgeSimulator >> source [
 
 { #category : 'accessing' }
 OPEdgeSimulator >> source: anElement [
-	self incoming ifNotEmpty: [ self error: [ 'edge can have only one source' ] ].
+
+	self incoming ifNotEmpty: [ self error: 'edge can have only one source' ].
 	self addIncoming: anElement
 ]
 
@@ -39,6 +40,7 @@ OPEdgeSimulator >> target [
 
 { #category : 'accessing' }
 OPEdgeSimulator >> target: anElement [
-	self outgoing ifNotEmpty: [ self error: [ 'edge can have only one target' ] ].
+
+	self outgoing ifNotEmpty: [ self error: 'edge can have only one target' ].
 	self addOutgoing: anElement
 ]

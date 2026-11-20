@@ -30,11 +30,15 @@ OPDummySubclassOfOPEdgeSimulator >> isSteppable [
 
 { #category : 'actions' }
 OPDummySubclassOfOPEdgeSimulator >> loadState [
+
+	super loadState.
 	model resetState
 ]
 
 { #category : 'actions' }
 OPDummySubclassOfOPEdgeSimulator >> saveState [
+
+	super saveState.
 	model doState
 ]
 

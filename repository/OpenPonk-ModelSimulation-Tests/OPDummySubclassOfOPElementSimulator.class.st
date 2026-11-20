@@ -30,11 +30,15 @@ OPDummySubclassOfOPElementSimulator >> isSteppable [
 
 { #category : 'actions' }
 OPDummySubclassOfOPElementSimulator >> loadState [
+
+	super loadState.
 	model resetState
 ]
 
 { #category : 'actions' }
 OPDummySubclassOfOPElementSimulator >> saveState [
+
+	super saveState.
 	model doState
 ]
 

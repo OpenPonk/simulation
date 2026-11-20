@@ -85,6 +85,19 @@ OPModelSimulatorTest >> testOrderByReversedPriority [
 ]
 
 { #category : 'tests' }
+OPModelSimulatorTest >> testOrderRandomized [
+
+	| result |
+	simulator
+		fromAllTokens;
+		priorityAny;
+		orderRandomized.
+	result := simulator itemsForSelect.
+	self assert: result class identicalTo: OrderedCollection.
+	self assertCollection: result hasSameElements: simulator tokens
+]
+
+{ #category : 'tests' }
 OPModelSimulatorTest >> testPriorityAny [
 
 	simulator

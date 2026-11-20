@@ -35,5 +35,7 @@ OPDummyOPDiagram >> elements [
 
 { #category : 'initialization' }
 OPDummyOPDiagram >> initialize [
+
+	super initialize.
 	elements := OrderedCollection new
 ]

@@ -211,12 +211,10 @@ OPDiagramSimulator >> simulableTokens [
 OPDiagramSimulator >> simulatorOf: aModel [
 	"answers element simulator of model element"
 
-	^ elements
-		detect: [ :element | element model = aModel ]
-		ifNone: [ 
-			model = aModel
-				ifTrue: [ model ]
-				ifFalse: [ self error: aModel asString , ' not found' ] ]
+	^ elements detect: [ :element | element model = aModel ] ifNone: [
+			  model = aModel
+				  ifTrue: [ self ]
+				  ifFalse: [ self error: aModel asString , ' not found' ] ]
 ]
 
 { #category : 'accessing' }

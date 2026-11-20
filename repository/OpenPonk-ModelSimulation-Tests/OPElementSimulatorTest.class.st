@@ -52,6 +52,32 @@ OPElementSimulatorTest >> testAccessing [
 ]
 
 { #category : 'tests' }
+OPElementSimulatorTest >> testAddIncomingAndOutgoingIgnoreNil [
+
+	simulator addIncoming: nil.
+	simulator addOutgoing: nil.
+	self assertEmpty: simulator incoming.
+	self assertEmpty: simulator outgoing
+]
+
+{ #category : 'tests' }
+OPElementSimulatorTest >> testAddTokensAndTokensDo [
+
+	| tokenA tokenB visited |
+	tokenA := OPDummySubclassOfOPToken new.
+	tokenB := OPDummySubclassOfOPToken new.
+	simulator addTokens: {
+			tokenA.
+			tokenB }.
+	self assert: simulator tokenCount equals: 4.
+	self assert: tokenA element identicalTo: simulator.
+	self assert: tokenB element identicalTo: simulator.
+	visited := OrderedCollection new.
+	simulator tokensDo: [ :each | visited add: each ].
+	self assertCollection: visited hasSameElements: simulator tokens
+]
+
+{ #category : 'tests' }
 OPElementSimulatorTest >> testConnected [
 
 	| incoming outgoing |
@@ -70,6 +96,49 @@ OPElementSimulatorTest >> testConnected [
 	self assert: outgoing incoming first equals: simulator.
 	self assertEmpty: outgoing outgoing.
 	self assertEmpty: incoming incoming
+]
+
+{ #category : 'tests' }
+OPElementSimulatorTest >> testConnectedEnumeration [
+
+	| incoming outgoing visitedIncoming visitedOutgoing visitedConnected |
+	incoming := self controllerClass new.
+	outgoing := self controllerClass new.
+	simulator
+		addIncoming: incoming;
+		addOutgoing: outgoing.
+	visitedIncoming := OrderedCollection new.
+	visitedOutgoing := OrderedCollection new.
+	visitedConnected := OrderedCollection new.
+	simulator incomingDo: [ :each | visitedIncoming add: each ].
+	simulator outgoingDo: [ :each | visitedOutgoing add: each ].
+	simulator connectedDo: [ :each | visitedConnected add: each ].
+	self assertCollection: visitedIncoming hasSameElements: { incoming }.
+	self assertCollection: visitedOutgoing hasSameElements: { outgoing }.
+	self assertCollection: visitedConnected hasSameElements: {
+			incoming.
+			outgoing }
+]
+
+{ #category : 'tests' }
+OPElementSimulatorTest >> testModelDiagramSimulatorCreation [
+
+	| diagramModel diagramSimulator elementModel createdSimulator |
+	diagramModel := OPDummyOPDiagram new.
+	diagramSimulator := OPDummySubclassOfOPDiagramSimulator model: diagramModel.
+	elementModel := OPDummyOPElement new.
+	createdSimulator := self controllerClass model: elementModel diagramSimulator: diagramSimulator.
+	self assert: createdSimulator model identicalTo: elementModel.
+	self assert: createdSimulator diagramSimulator identicalTo: diagramSimulator.
+	self assert: createdSimulator diagram identicalTo: diagramModel
+]
+
+{ #category : 'tests' }
+OPElementSimulatorTest >> testPriority [
+
+	self assert: simulator priority equals: 0.
+	simulator priority: 5.
+	self assert: simulator priority equals: 5
 ]
 
 { #category : 'tests' }

@@ -21,6 +21,37 @@ OPTokenTest >> prepareOneSimulable [
 ]
 
 { #category : 'tests' }
+OPTokenTest >> testElementAndDiagramSimulator [
+
+	| diagramModel diagramSimulator elementSimulator tokenFromElement tokenFromDiagram |
+	diagramModel := OPDummyOPDiagram new.
+	diagramSimulator := OPDummySubclassOfOPDiagramSimulator model: diagramModel.
+	elementSimulator := OPDummySubclassOfOPElementSimulator model: OPDummyOPElement new diagramSimulator: diagramSimulator.
+
+	tokenFromElement := self controllerClass element: elementSimulator.
+	self assert: tokenFromElement element identicalTo: elementSimulator.
+	self assert: tokenFromElement diagramSimulator identicalTo: diagramSimulator.
+	self assert: tokenFromElement diagram identicalTo: diagramModel.
+
+	tokenFromElement element: nil.
+	self assert: tokenFromElement element identicalTo: nil.
+	self assert: tokenFromElement diagramSimulator identicalTo: nil.
+
+	tokenFromDiagram := self controllerClass diagramSimulator: diagramSimulator.
+	self assert: tokenFromDiagram element identicalTo: nil.
+	self assert: tokenFromDiagram diagramSimulator identicalTo: diagramSimulator.
+	self assert: tokenFromDiagram diagram identicalTo: diagramModel
+]
+
+{ #category : 'tests' }
+OPTokenTest >> testPriority [
+
+	self assert: simulator priority equals: 0.
+	simulator priority: 7.
+	self assert: simulator priority equals: 7
+]
+
+{ #category : 'tests' }
 OPTokenTest >> testStep [
 
 	simulator addAction: [ :item | item doState ].
