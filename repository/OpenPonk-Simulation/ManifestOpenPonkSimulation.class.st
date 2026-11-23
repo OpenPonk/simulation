@@ -8,10 +8,3 @@ Class {
 	#package : 'OpenPonk-Simulation',
 	#tag : 'Manifest'
 }
-
-{ #category : 'code-critics' }
-ManifestOpenPonkSimulation class >> ruleReShouldSendSuperInitializeAsFirstMessageV1FalsePositive [
-
-	<ignoreForCoverage>
-	^ #(#(#(#RGMethodDefinition #(#OPSimulationGUI #initialize #false)) #'2026-08-30T22:37:16.725+02:00') )
-]

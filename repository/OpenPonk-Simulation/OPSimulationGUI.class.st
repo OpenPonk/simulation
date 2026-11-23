@@ -1,21 +1,7 @@
 "
-I'm above Simulation layer and Controller layer which I connect together, like controller connects model and view.
-
-I am responsible for integration into GUI of DynaCASE, for creating own GUI and for special animations only for simulation.
-
-Make my instance only by using class-side method controller:
-If there is not any instance for given controller, I create one and if there is one, I return that one.
-=> I have singleton-like behavior for each diagramController.
-
-All subclasses should contain simulatorClass method, which returns appropriate class of diagramSimulator.
-For adding buttons into my GUI use buttonItems method, for adding own code for diagramController, use loadController method.
-
-Internal Representation and Key Implementation Points.
-
-    Instance Variables
-	buttons:		contains collection of blocks used for adding buttons into my GUI
-	diagramController:		controller of diagram
-	diagramSimulator:		simulator of diagram
+Abstract Spec2 presenter bridging a diagram controller with its diagram simulator.
+Provides singleton-like lookup per open diagram controller via #diagramController:, manages simulation control buttons and model child-change reloads, and cleans up subscriptions and saved state when the simulation window closes.
+Subclasses must implement #simulatorClass to return the concrete OPDiagramSimulator subclass and may override #buttonItems and #loadSimulation.
 "
 Class {
 	#name : 'OPSimulationGUI',
@@ -25,15 +11,10 @@ Class {
 		'diagramController',
 		'buttons'
 	],
-	#category : 'OpenPonk-Simulation',
-	#package : 'OpenPonk-Simulation'
+	#category : 'OpenPonk-Simulation-Simulation',
+	#package : 'OpenPonk-Simulation',
+	#tag : 'Simulation'
 }
-
-{ #category : 'layout' }
-OPSimulationGUI class >> defaultLayout [
-
-	^ SpBoxLayout newLeftToRight
-]
 
 { #category : 'instance creation' }
 OPSimulationGUI class >> diagramController: aDiagramController [
@@ -63,29 +44,15 @@ OPSimulationGUI class >> stepSimulatorOfController: anElementController [
 
 	| myInstance |
 	myInstance := self diagramController: anElementController diagramController.
-	myInstance stepSimulatorOfController: anElementController
-]
-
-{ #category : 'toolbar' }
-OPSimulationGUI class >> toolbarMenu: aBuilder [
-	self subclassResponsibility
-]
-
-{ #category : 'toolbar' }
-OPSimulationGUI class >> toolbarMenuItemFor: aBuilder [
-
-	^ (aBuilder item: 'Simulation')
-		  iconName: #glamorousSpawn;
-		  action: [ "aBuilder model is editor"
-			  self diagramController: aBuilder model diagramController ];
-		  yourself
+	myInstance stepSimulatorOfController: anElementController.
+	^ myInstance
 ]
 
 { #category : 'windows' }
 OPSimulationGUI >> activate [
 	"causes simulation GUI to get on top of screen"
 
-	self windowMorph activate
+	self windowMorph ifNotNil: [ :morph | morph activate ]
 ]
 
 { #category : 'adding' }
@@ -94,15 +61,6 @@ OPSimulationGUI >> addButtons [
 	buttons := self buttonItems.
 	self initializeLayout.
 	self withWindowDo: [ :window | self initializeWindow: window ]
-]
-
-{ #category : 'building widgets' }
-OPSimulationGUI >> alignButtons [
-	"align content of all buttons to left"
-
-	buttons
-		select: [ :each | each widget isNotNil ]
-		thenDo: [ :each | each widget widget submorphs first listCentering: #topLeft ]
 ]
 
 { #category : 'private - hooks' }
@@ -129,13 +87,14 @@ OPSimulationGUI >> close [
 	"ends simulation and closes window
 	it ends simulation by event triggered by closing window"
 
-	self window close
+	self withWindowDo: [ :aWindow | aWindow close ]
 ]
 
 { #category : 'private - updating' }
 OPSimulationGUI >> closed [
-	self diagramModel announcer unsubscribe: self.
-	self diagramSimulator loadState.
+
+	diagramController ifNotNil: [ self diagramModel announcer unsubscribe: self ].
+	diagramSimulator ifNotNil: [ diagramSimulator loadState ].
 	diagramController := nil.
 	diagramSimulator := nil
 ]
@@ -163,13 +122,6 @@ OPSimulationGUI >> diagramSimulator [
 	^ diagramSimulator
 ]
 
-{ #category : 'initialization' }
-OPSimulationGUI >> initialize [
-
-	buttons := OrderedCollection new.
-	super initialize
-]
-
 { #category : 'building widgets' }
 OPSimulationGUI >> initializeLayout [
 
@@ -191,6 +143,7 @@ OPSimulationGUI >> initializeLayout [
 OPSimulationGUI >> initializePresenters [
 
 	super initializePresenters.
+	buttons := OrderedCollection new.
 	self initializeLayout
 ]
 
@@ -200,7 +153,7 @@ OPSimulationGUI >> initializeWindow: aWindow [
 	super initializeWindow: aWindow.
 	diagramController ifNil: [ ^ self ].
 	aWindow initialExtent: 360 @ (buttons size * self class buttonHeight).
-	aWindow title: 'Simulation of ' , self diagramModel name
+	aWindow title: 'Simulation of ' , (self diagramModel name ifNil: [ '' ])
 ]
 
 { #category : 'initialization' }
@@ -209,16 +162,14 @@ OPSimulationGUI >> initializeWithController [
 
 	self loadSimulation.
 	self whenWindowClosedUnsubscribeFrom: self diagramModel.
-	self diagramModel
-		weakWhen: OPModelChildrenChangedEvent
-		send: #reloadController
-		to: self.
+	self subscribeToModel.
 	self addButtons
 ]
 
 { #category : 'windows' }
 OPSimulationGUI >> isOpen [
-	^ self hasWindow
+
+	^ self hasWindow and: [ self window isOpen ]
 ]
 
 { #category : 'private - hooks' }
@@ -236,25 +187,18 @@ OPSimulationGUI >> open [
 	self window whenClosedDo: [ self closed ]
 ]
 
-{ #category : 'building widgets' }
-OPSimulationGUI >> rebuildWidget [
-
-	self initializeLayout.
-	self withWindowDo: [ :window | 
-		window initialExtent:
-			360 @ (26 + (buttons size * self class buttonHeight / 2)) ]
-]
-
 { #category : 'updating' }
 OPSimulationGUI >> reloadController [
 	"reloads elements from diagramController"
 
 	| controller |
 	controller := self diagramController.
+	controller ifNil: [ ^ self ].
 	self closed.
 	diagramController := controller.
 	self
 		loadSimulation;
+		subscribeToModel;
 		open;
 		activate
 ]
@@ -275,7 +219,14 @@ OPSimulationGUI >> stepSimulatorOfController: anElementController [
 	elementSimulator step
 ]
 
+{ #category : 'private - updating' }
+OPSimulationGUI >> subscribeToModel [
+
+	self diagramModel weakWhen: OPModelChildrenChangedEvent send: #reloadController to: self
+]
+
 { #category : 'accessing' }
 OPSimulationGUI >> windowMorph [
-	^ self window window
+
+	^ self withWindowDo: [ :aWindow | aWindow window ]
 ]
