@@ -79,3 +79,28 @@ OPSimulationRegistryTest >> testRegisterLookupPruneClosedAndCloseAll [
 	self assertCollection: closeCalls hasSameElements: #( #guiB ).
 	self assertEmpty: registry openGuis
 ]
+
+{ #category : 'tests' }
+OPSimulationRegistryTest >> testUnregisterControllerPruneClosedAndNilControllerGuard [
+
+	| controllerA controllerB openGui closedGui |
+	controllerA := Object new.
+	controllerB := Object new.
+	openGui := Mock new.
+	openGui stub isOpen willReturn: true.
+	openGui stub close willReturn: nil.
+	closedGui := Mock new.
+	closedGui stub isOpen willReturn: false.
+
+	registry register: openGui for: nil.
+	self assertEmpty: registry openGuis.
+
+	registry
+		register: openGui for: controllerA;
+		register: closedGui for: controllerB.
+	self assertCollection: registry openGuis hasSameElements: { openGui }.
+
+	registry unregisterController: controllerA.
+	self assertEmpty: registry openGuis.
+	self assert: (registry guiFor: controllerA ifAbsent: [ #missing ]) identicalTo: #missing
+]

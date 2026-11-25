@@ -293,7 +293,7 @@ OPSimulationGUI >> initializeWithController [
 { #category : 'testing' }
 OPSimulationGUI >> isConfigurationVisible [
 
-	^ isConfigurationVisible ifNil: [ false ]
+	^ isConfigurationVisible
 ]
 
 { #category : 'testing' }
@@ -306,9 +306,7 @@ OPSimulationGUI >> isOpen [
 OPSimulationGUI >> loadSimulation [
 	"Prepares simulation state after session loads or reloads the diagram simulator."
 
-	diagramSimulator := session
-		                    ifNotNil: [ :activeSession | activeSession diagramSimulator ]
-		                    ifNil: [ self simulatorClass model: self diagramModel ]
+	diagramSimulator := session diagramSimulator
 ]
 
 { #category : 'button factories' }
@@ -339,26 +337,6 @@ OPSimulationGUI >> newConfigureButtonLabeled: aLabel help: aHelp [
 		                   help: aHelp
 		                   action: [ self toggleConfiguration ].
 	^ configureButton
-]
-
-{ #category : 'button factories' }
-OPSimulationGUI >> newPauseButton [
-
-	^ self
-		  newButtonLabeled: 'Pause'
-		  iconName: #testYellow
-		  help: 'Pause simulation'
-		  action: [ self session ifNotNil: [ :activeSession | activeSession pause ] ]
-]
-
-{ #category : 'button factories' }
-OPSimulationGUI >> newPlayButton [
-
-	^ self
-		  newButtonLabeled: 'Play'
-		  iconName: #smallPrintItIcon
-		  help: 'Play simulation continuously'
-		  action: [ self session ifNotNil: [ :activeSession | activeSession play ] ]
 ]
 
 { #category : 'button factories' }

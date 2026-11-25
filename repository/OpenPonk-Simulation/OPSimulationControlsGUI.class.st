@@ -160,7 +160,7 @@ OPSimulationControlsGUI >> selectedDelay [
 { #category : 'accessing' }
 OPSimulationControlsGUI >> showsDelayControl [
 
-	^ showsDelayControl ifNil: [ true ]
+	^ showsDelayControl
 ]
 
 { #category : 'accessing' }

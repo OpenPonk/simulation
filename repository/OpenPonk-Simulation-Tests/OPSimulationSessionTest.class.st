@@ -153,6 +153,26 @@ OPSimulationSessionTest >> testCloseOnEditorClosedUnsubscribesAndIsIdempotent [
 ]
 
 { #category : 'tests' }
+OPSimulationSessionTest >> testDefaultUiDispatcherExecutesOnUiThreadAndCancelsPendingWaits [
+
+	| executedOnUi done |
+	session := OPSimulationSession diagramController: diagramController simulatorClass: OPTestSimulationDiagramSimulator.
+	executedOnUi := false.
+	done := Semaphore new.
+	[
+		session uiDispatcher value: [
+				executedOnUi := UIManager default uiProcess isNil or: [ Processor activeProcess == UIManager default uiProcess ].
+				done signal ] ] fork.
+	self deny: (done waitTimeoutSeconds: 2) description: 'Default UI dispatcher must execute deferred block on UI process'.
+	self assert: executedOnUi description: 'Deferred block must run on the UI process when one is active'.
+
+	session start.
+	(session instVarNamed: #pendingStepSemaphores) add: Semaphore new.
+	session pause.
+	self assertEmpty: (session instVarNamed: #pendingStepSemaphores)
+]
+
+{ #category : 'tests' }
 OPSimulationSessionTest >> testReloadPreservesDelayAndRebuildsSimulatorOnModelChildrenChanged [
 
 	| willReloadCount reloadedCount initialSimulator thirdElement |
@@ -177,4 +197,35 @@ OPSimulationSessionTest >> testReloadPreservesDelayAndRebuildsSimulatorOnModelCh
 	self deny: session diagramSimulator identicalTo: initialSimulator.
 	self assert: session diagramSimulator elements size equals: 3.
 	self assert: session diagramSimulator delay equals: 250
+]
+
+{ #category : 'tests' }
+OPSimulationSessionTest >> testStepActionCallbackIdempotentStartInactiveReloadAndMetadata [
+
+	| actionEvents stepEvents firstSimulator |
+	actionEvents := OrderedCollection new.
+	stepEvents := OrderedCollection new.
+	session := OPSimulationSession diagramController: diagramController simulatorClass: OPTestSimulationDiagramSimulator.
+	session
+		uiDispatcher: [ :aBlock | aBlock value ];
+		onAction: [ :event | actionEvents add: event ];
+		onStepped: [ :event | stepEvents add: event ].
+
+	self assert: session diagramController identicalTo: diagramController.
+	self assert: session simulatorClass identicalTo: OPTestSimulationDiagramSimulator.
+	session reload.
+	session stepElementController: elementController.
+	self assert: session diagramSimulator identicalTo: nil.
+
+	session start.
+	firstSimulator := session diagramSimulator.
+	session start.
+	self assert: session diagramSimulator identicalTo: firstSimulator.
+
+	firstSimulator addAction: [ :item | item step ].
+	(firstSimulator simulatorOf: firstElement) addAction: [ :item |  ].
+	session step.
+	self assert: stepEvents size equals: 1.
+	self assert: actionEvents size equals: 1.
+	self assert: actionEvents first simulator identicalTo: (firstSimulator simulatorOf: firstElement)
 ]

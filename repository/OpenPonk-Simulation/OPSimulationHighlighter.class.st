@@ -122,7 +122,8 @@ OPSimulationHighlighter >> initialize [
 	super initialize.
 	originalFillColors := IdentityDictionary new.
 	originalBorderStates := IdentityDictionary new.
-	flashProcesses := IdentityDictionary new
+	flashProcesses := IdentityDictionary new.
+	uiDispatcher := [ :aBlock | UIManager default defer: aBlock ]
 ]
 
 { #category : 'private' }
@@ -229,7 +230,7 @@ OPSimulationHighlighter >> scheduleFlashRestoreFor: aController duration: aDurat
 { #category : 'accessing' }
 OPSimulationHighlighter >> uiDispatcher [
 
-	^ uiDispatcher ifNil: [ uiDispatcher := [ :aBlock | UIManager default defer: aBlock ] ]
+	^ uiDispatcher
 ]
 
 { #category : 'accessing' }

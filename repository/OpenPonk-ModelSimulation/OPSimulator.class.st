@@ -224,7 +224,7 @@ OPSimulator >> runRepeatingWithDelayBlock: aDelayBlock maxSteps: aMaxStepsOrNil 
 	shouldRun ifTrue: [ ^ self ].
 	self isSteppable ifFalse: [ ^ self ].
 	(aMaxStepsOrNil isNotNil and: [ aMaxStepsOrNil <= 0 ]) ifTrue: [ ^ self ].
-	runGeneration := (runGeneration ifNil: [ 0 ]) + 1.
+	runGeneration := runGeneration + 1.
 	currentGeneration := runGeneration.
 	currentWaitSemaphore := Semaphore new.
 	waitSemaphore := currentWaitSemaphore.
@@ -278,7 +278,7 @@ OPSimulator >> step [
 OPSimulator >> stepRunner [
 	"Answer the execution wrapper block used to run each repeated step and final stop notification."
 
-	^ stepRunner ifNil: [ stepRunner := [ :aBlock | aBlock value ] ]
+	^ stepRunner
 ]
 
 { #category : 'accessing' }
@@ -296,7 +296,7 @@ OPSimulator >> stop [
 	shouldRun ifFalse: [ ^ self ].
 	stoppedDelay := self delay.
 	shouldRun := false.
-	runGeneration := (runGeneration ifNil: [ 0 ]) + 1.
+	runGeneration := runGeneration + 1.
 	runProcess := nil.
 	activeSemaphore := waitSemaphore.
 	waitSemaphore := nil.
@@ -308,11 +308,6 @@ OPSimulator >> stop [
 OPSimulator >> unsubscribe: aSubscriber [
 
 	announcer unsubscribe: aSubscriber
-]
-
-{ #category : 'private - actions' }
-OPSimulator >> waitFor: milliSeconds [
-	(Delay forMilliseconds: milliSeconds) wait
 ]
 
 { #category : 'announcing' }

@@ -184,3 +184,37 @@ OPSimulationHighlighterTest >> testReplaceHighlightsDuringRestoresInactiveElemen
 	self assert: firstShape color equals: originalFirstColor.
 	self assert: secondShape color equals: Color yellow
 ]
+
+{ #category : 'tests' }
+OPSimulationHighlighterTest >> testRestoreModelValidFlashCompletionAndUnchangedShapeRestore [
+
+	| firstController firstShape originalColor flashProcess |
+	self assert: highlighter diagramController identicalTo: diagramController.
+	self
+		assert: (OPSimulationHighlighter on: diagramController) uiDispatcher isNotNil
+		description: 'Default highlighter must initialize uiDispatcher'.
+
+	firstController := diagramController showInDiagramModel: firstElement.
+	firstShape := firstController roassalShape.
+	originalColor := firstShape color.
+
+	highlighter highlightFillOfModel: firstElement color: Color green.
+	self assert: firstShape color equals: Color green.
+	highlighter restoreModel: firstElement.
+	self assert: firstShape color equals: originalColor.
+
+	highlighter flashFillOfModel: firstElement color: Color yellow duration: 5 seconds.
+	flashProcess := (highlighter instVarNamed: #flashProcesses) at: firstController.
+	highlighter finishFlashRestoreFor: firstController process: flashProcess.
+	self assert: firstShape color equals: originalColor.
+	self assertEmpty: (highlighter instVarNamed: #flashProcesses).
+
+	highlighter highlightFillOfModel: firstElement color: originalColor.
+	highlighter restoreController: firstController.
+	self assert: firstShape color equals: originalColor.
+
+	highlighter highlightStrokeOfModel: firstElement color: Color red.
+	firstController removeRender.
+	highlighter restoreController: firstController.
+	self assertEmpty: (highlighter instVarNamed: #originalBorderStates)
+]

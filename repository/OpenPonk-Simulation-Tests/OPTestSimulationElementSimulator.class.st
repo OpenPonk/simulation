@@ -62,7 +62,8 @@ OPTestSimulationElementSimulator >> saveStateCount [
 { #category : 'actions' }
 OPTestSimulationElementSimulator >> step [
 
-	stepCount := stepCount + 1
+	stepCount := stepCount + 1.
+	super step
 ]
 
 { #category : 'accessing' }

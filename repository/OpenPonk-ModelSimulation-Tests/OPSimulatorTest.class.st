@@ -249,6 +249,66 @@ OPSimulatorTest >> testRepeatReadsDelayDynamically [
 ]
 
 { #category : 'tests' }
+OPSimulatorTest >> testRepeatStopsNaturallyWhenNoLongerSteppable [
+
+	| finished stepCount stoppedEvent |
+	self prepareOneSteppable.
+	finished := Semaphore new.
+	stepCount := 0.
+	stoppedEvent := nil.
+	simulator delay: 1.
+	simulator addAction: [ :item |
+			stepCount := stepCount + 1.
+			simulator steppable: false ].
+	simulator
+		when: OPSimulatorStoppedRun
+		do: [ :event |
+				stoppedEvent := event.
+				finished signal ]
+		for: self.
+
+	[
+		simulator repeat.
+		self deny: (finished waitTimeoutSeconds: 2) description: 'Repeat must stop naturally when simulator is no longer steppable'.
+		self assert: stepCount equals: 1.
+		self deny: simulator isRunning description: 'Simulator must report not running after natural completion'.
+		self assert: stoppedEvent simulator identicalTo: simulator ] ensure: [ simulator stop ]
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRepeatTimesCompletesAndAnnouncesLimitedRunEvents [
+
+	| runEvents finished stepCount |
+	self prepareOneSteppable.
+	runEvents := OrderedCollection new.
+	finished := Semaphore new.
+	stepCount := 0.
+	simulator delay: 1.
+	simulator addAction: [ :item | stepCount := stepCount + 1 ].
+	simulator
+		when: OPSimulatorRunEvent
+		do: [ :event |
+				runEvents add: event.
+				(event isKindOf: OPSimulatorStoppedRun) ifTrue: [ finished signal ] ]
+		for: self.
+
+	[
+		simulator repeatTimes: 0.
+		self deny: simulator isRunning description: 'repeatTimes: 0 must not start running'.
+		self assertEmpty: runEvents.
+
+		simulator repeatTimes: 2.
+		self deny: (finished waitTimeoutSeconds: 2) description: 'repeatTimes: 2 must complete and announce OPSimulatorStoppedRun'.
+		self assert: stepCount equals: 2.
+		self deny: simulator isRunning description: 'Simulator must not report running after repeatTimes finishes'.
+		self assert: (runEvents collect: #class as: Array) equals: {
+				OPSimulatorWillRun.
+				OPSimulatorStoppedRun }.
+		self assert: runEvents first repeatTimes equals: 2.
+		self assert: runEvents second repeatTimes equals: 2 ] ensure: [ simulator stop ]
+]
+
+{ #category : 'tests' }
 OPSimulatorTest >> testRepeatUsesStepRunnerAndStopsCleanlyWithoutDuplicateStoppedEvent [
 
 	| firstStepDone runnerCalls stoppedCount stepCount |
@@ -278,6 +338,26 @@ OPSimulatorTest >> testRepeatUsesStepRunnerAndStopsCleanlyWithoutDuplicateStoppe
 		(Delay forMilliseconds: 30) wait.
 		self assert: stoppedCount equals: 1.
 		self assert: stepCount equals: 1 ] ensure: [ simulator stop ]
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRepeatWithDelayUsesExplicitDelayWithoutMutatingSimulatorDelay [
+
+	| willRunEvent firstStepDone |
+	self prepareOneSteppable.
+	willRunEvent := nil.
+	firstStepDone := Semaphore new.
+	simulator delay: 1234.
+	simulator addAction: [ :item | firstStepDone signal ].
+	simulator when: OPSimulatorWillRun do: [ :event | willRunEvent := event ] for: self.
+
+	[
+		simulator repeatWithDelay: 5000.
+		self deny: (firstStepDone waitTimeoutSeconds: 2) description: 'repeatWithDelay: must execute its first step'.
+		self assert: willRunEvent delay equals: 5000.
+		self assert: simulator delay equals: 1234.
+		simulator repeat.
+		self assert: simulator isRunning description: 'Calling repeat while already running must be a no-op' ] ensure: [ simulator stop ]
 ]
 
 { #category : 'tests' }

@@ -126,6 +126,7 @@ OPSimulationSession >> initialize [
 
 	super initialize.
 	delayInMilliseconds := 1000.
+	uiDispatcher := self defaultUiDispatcher.
 	pendingStepSemaphores := IdentitySet new.
 	callbacks := IdentityDictionary new.
 	isActive := false
@@ -324,7 +325,7 @@ OPSimulationSession >> togglePlayPause [
 { #category : 'accessing' }
 OPSimulationSession >> uiDispatcher [
 
-	^ uiDispatcher ifNil: [ uiDispatcher := self defaultUiDispatcher ]
+	^ uiDispatcher
 ]
 
 { #category : 'accessing' }

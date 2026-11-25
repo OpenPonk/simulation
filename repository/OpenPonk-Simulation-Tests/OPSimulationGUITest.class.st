@@ -187,6 +187,48 @@ OPSimulationGUITest >> testConfigurationSidebarToggleReloadAndWindowSizing [
 ]
 
 { #category : 'tests' }
+OPSimulationGUITest >> testDefaultHooksOnMinimalSubclassAndStepConfigureButtonActions [
+
+	| minimalGui stepButton configureButton actionCount |
+	minimalGui := OPMinimalTestSimulationGUI diagramController: diagramController.
+	[
+		self deny: minimalGui hasConfiguration description: 'Base OPSimulationGUI must default hasConfiguration to false'.
+		self deny: minimalGui supportsSavingState description: 'Base OPSimulationGUI must default supportsSavingState to false'.
+		self assert: minimalGui showsDelayControl description: 'Base OPSimulationGUI must default showsDelayControl to true'.
+		self assert: minimalGui buildConfigurationPresenter identicalTo: nil.
+		self assert: (minimalGui buttons collect: #label as: Array) equals: #( 'Play' 'Step' 'Reset' ).
+
+		minimalGui showConfiguration.
+		self deny: minimalGui isConfigurationVisible description: 'showConfiguration must be a no-op when hasConfiguration is false'.
+		minimalGui hideConfiguration.
+
+		actionCount := 0.
+		minimalGui diagramSimulator addAction: [ :item |
+				actionCount := actionCount + 1.
+				item step ].
+		(minimalGui diagramSimulator simulatorOf: firstElement) addAction: [ :item |  ].
+		stepButton := minimalGui buttons detect: [ :each | each label = 'Step' ].
+		stepButton performAction.
+		self assert: actionCount equals: 2 ] ensure: [ minimalGui close ].
+
+	simulationGui := OPTestSimulationGUI new
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	configureButton := simulationGui buttons detect: [ :each | each label = 'Configure' ].
+	configureButton performAction.
+	self assert: simulationGui isConfigurationVisible description: 'Clicking Configure button must open sidebar'.
+	configureButton performAction.
+	self deny: simulationGui isConfigurationVisible description: 'Clicking Configure button again must hide sidebar'.
+
+	simulationGui diagramSimulator addAction: [ :item | item step ].
+	(simulationGui diagramSimulator simulatorOf: firstElement) addAction: [ :item |  ].
+	simulationGui session step.
+	self assert: simulationGui actionEvents size equals: 1
+]
+
+{ #category : 'tests' }
 OPSimulationGUITest >> testDelaySelectionPersistsAcrossReloadAndEditorClosedClosesGui [
 
 	| thirdElement |

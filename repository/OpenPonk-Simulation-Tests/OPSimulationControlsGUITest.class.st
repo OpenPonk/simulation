@@ -30,6 +30,26 @@ OPSimulationControlsGUITest >> tearDown [
 ]
 
 { #category : 'tests' }
+OPSimulationControlsGUITest >> testAccessorsAndUpdateRunningStateWithoutPlayPauseButton [
+
+	| onlyStepButton |
+	onlyStepButton := controlsGui newButton
+		                  label: 'Step';
+		                  yourself.
+	controlsGui
+		registerStepButton: onlyStepButton;
+		buttons: { onlyStepButton }.
+
+	self assert: controlsGui buttons size equals: 1.
+	self assert: controlsGui delayDropList selectedItem value equals: 1000.
+
+	controlsGui updateRunningState: true.
+	self deny: onlyStepButton isEnabled description: 'Step button must disable even when no Play/Pause button is registered'.
+	controlsGui updateRunningState: false.
+	self assert: onlyStepButton isEnabled description: 'Step button must re-enable when stopped'
+]
+
+{ #category : 'tests' }
 OPSimulationControlsGUITest >> testDelaySelectionAndPreferredHeightScaling [
 
 	| selectedDelays heightWithDelay heightWithoutDelay |
