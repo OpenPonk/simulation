@@ -11,11 +11,6 @@ Class {
 }
 
 { #category : 'hooks' }
-OPElementSimulatorTest >> controllerClass [
-	^ OPDummySubclassOfOPElementSimulator
-]
-
-{ #category : 'hooks' }
 OPElementSimulatorTest >> prepareOneSimulable [
 	simulator fromSelf
 ]
@@ -28,6 +23,11 @@ OPElementSimulatorTest >> setUp [
 	simulator
 		addToken: OPDummyOPToken new;
 		addToken: OPDummyOPToken new
+]
+
+{ #category : 'hooks' }
+OPElementSimulatorTest >> simulatorClass [
+	^ OPDummySubclassOfOPElementSimulator
 ]
 
 { #category : 'tests' }
@@ -84,11 +84,11 @@ OPElementSimulatorTest >> testConnected [
 	self assertEmpty: simulator outgoing.
 	self assertEmpty: simulator incoming.
 
-	incoming := self controllerClass new.
+	incoming := self simulatorClass new.
 	simulator addIncoming: incoming.
 	self assert: simulator incoming size equals: 1.
 
-	outgoing := self controllerClass new.
+	outgoing := self simulatorClass new.
 	simulator addOutgoing: outgoing.
 	self assert: simulator outgoing size equals: 1.
 
@@ -102,8 +102,8 @@ OPElementSimulatorTest >> testConnected [
 OPElementSimulatorTest >> testConnectedEnumeration [
 
 	| incoming outgoing visitedIncoming visitedOutgoing visitedConnected |
-	incoming := self controllerClass new.
-	outgoing := self controllerClass new.
+	incoming := self simulatorClass new.
+	outgoing := self simulatorClass new.
 	simulator
 		addIncoming: incoming;
 		addOutgoing: outgoing.
@@ -127,7 +127,7 @@ OPElementSimulatorTest >> testModelDiagramSimulatorCreation [
 	diagramModel := OPDummyOPDiagram new.
 	diagramSimulator := OPDummySubclassOfOPDiagramSimulator model: diagramModel.
 	elementModel := OPDummyOPElement new.
-	createdSimulator := self controllerClass model: elementModel diagramSimulator: diagramSimulator.
+	createdSimulator := self simulatorClass model: elementModel diagramSimulator: diagramSimulator.
 	self assert: createdSimulator model identicalTo: elementModel.
 	self assert: createdSimulator diagramSimulator identicalTo: diagramSimulator.
 	self assert: createdSimulator diagram identicalTo: diagramModel

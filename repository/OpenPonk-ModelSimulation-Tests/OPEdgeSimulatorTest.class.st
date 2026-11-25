@@ -10,16 +10,16 @@ Class {
 	#tag : 'Simulators'
 }
 
-{ #category : 'hooks' }
-OPEdgeSimulatorTest >> controllerClass [
-	^ OPDummySubclassOfOPEdgeSimulator
-]
-
 { #category : 'running' }
 OPEdgeSimulatorTest >> setUp [
 
 	super setUp.
 	simulator model: OPDummyOPEdge new
+]
+
+{ #category : 'hooks' }
+OPEdgeSimulatorTest >> simulatorClass [
+	^ OPDummySubclassOfOPEdgeSimulator
 ]
 
 { #category : 'tests' }
@@ -28,10 +28,10 @@ OPEdgeSimulatorTest >> testConnectedAliases [
 	self assert: simulator source identicalTo: nil.
 	self assert: simulator target identicalTo: nil.
 
-	simulator source: self controllerClass new.
-	simulator target: self controllerClass new.
-	self assert: simulator source class identicalTo: self controllerClass.
-	self assert: simulator target class identicalTo: self controllerClass.
+	simulator source: self simulatorClass new.
+	simulator target: self simulatorClass new.
+	self assert: simulator source class identicalTo: self simulatorClass.
+	self assert: simulator target class identicalTo: self simulatorClass.
 	self assertCollection: simulator source outgoing includesAll: { simulator }.
 	self assertCollection: simulator target incoming includesAll: { simulator }
 ]
@@ -52,7 +52,7 @@ OPEdgeSimulatorTest >> testLoadConnectedItems [
 		             source: sourceModel;
 		             target: targetModel;
 		             yourself.
-	edgeSimulator := self controllerClass model: edgeModel diagramSimulator: diagramSimulator.
+	edgeSimulator := self simulatorClass model: edgeModel diagramSimulator: diagramSimulator.
 	edgeSimulator loadConnectedItems.
 	self assert: edgeSimulator source identicalTo: sourceSimulator.
 	self assert: edgeSimulator target identicalTo: targetSimulator.
@@ -64,18 +64,18 @@ OPEdgeSimulatorTest >> testLoadConnectedItems [
 OPEdgeSimulatorTest >> testSourceAndTargetCannotBeSetTwice [
 
 	| sourceError targetError |
-	simulator source: self controllerClass new.
+	simulator source: self simulatorClass new.
 	sourceError := nil.
-	[ simulator source: self controllerClass new ]
+	[ simulator source: self simulatorClass new ]
 		on: Error
 		do: [ :error | sourceError := error ].
 	self assert: sourceError isNotNil description: 'Setting a second source must signal an Error'.
 	self assert: sourceError messageText equals: 'edge can have only one source'.
 	self assert: sourceError description equals: 'Error: edge can have only one source'.
 
-	simulator target: self controllerClass new.
+	simulator target: self simulatorClass new.
 	targetError := nil.
-	[ simulator target: self controllerClass new ]
+	[ simulator target: self simulatorClass new ]
 		on: Error
 		do: [ :error | targetError := error ].
 	self assert: targetError isNotNil description: 'Setting a second target must signal an Error'.

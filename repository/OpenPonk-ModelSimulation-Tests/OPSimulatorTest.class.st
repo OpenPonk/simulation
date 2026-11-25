@@ -19,11 +19,6 @@ OPSimulatorTest class >> isAbstract [
 ]
 
 { #category : 'hooks' }
-OPSimulatorTest >> controllerClass [
-	^ self subclassResponsibility
-]
-
-{ #category : 'hooks' }
 OPSimulatorTest >> prepareOneNotSteppable [
 	self prepareOneSimulable.
 	simulator steppable: false
@@ -44,7 +39,13 @@ OPSimulatorTest >> prepareOneSteppable [
 OPSimulatorTest >> setUp [
 
 	super setUp.
-	simulator := self controllerClass new
+	simulator := self simulatorClass new
+]
+
+{ #category : 'hooks' }
+OPSimulatorTest >> simulatorClass [
+
+	^ self subclassResponsibility
 ]
 
 { #category : 'tests' }

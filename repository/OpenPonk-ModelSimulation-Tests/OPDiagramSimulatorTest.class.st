@@ -14,14 +14,9 @@ Class {
 }
 
 { #category : 'hooks' }
-OPDiagramSimulatorTest >> controllerClass [
-	^ OPDummySubclassOfOPDiagramSimulator
-]
-
-{ #category : 'hooks' }
 OPDiagramSimulatorTest >> prepareOneSimulable [
 	diagram := OPDummyOPDiagram new addElements: 1.
-	simulator := self controllerClass model: diagram
+	simulator := self simulatorClass model: diagram
 ]
 
 { #category : 'running' }
@@ -36,6 +31,11 @@ OPDiagramSimulatorTest >> setUp [
 		yourself.
 	diagram add: edge.
 	simulator model: diagram
+]
+
+{ #category : 'hooks' }
+OPDiagramSimulatorTest >> simulatorClass [
+	^ OPDummySubclassOfOPDiagramSimulator
 ]
 
 { #category : 'tests' }
@@ -57,7 +57,7 @@ OPDiagramSimulatorTest >> testAccessing [
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testClassForUnknownModel [
 
-	self should: [ self controllerClass classFor: Object new ] raise: Error
+	self should: [ self simulatorClass classFor: Object new ] raise: Error
 ]
 
 { #category : 'tests' }
@@ -90,7 +90,7 @@ OPDiagramSimulatorTest >> testIsSimulable [
 
 	| emptySimulator |
 	self assert: simulator isSimulable description: 'Diagram simulator with simulable elements must be simulable'.
-	emptySimulator := self controllerClass model: OPDummyOPDiagram new.
+	emptySimulator := self simulatorClass model: OPDummyOPDiagram new.
 	self deny: emptySimulator isSimulable description: 'Empty diagram simulator must not be simulable'
 ]
 
@@ -109,11 +109,11 @@ OPDiagramSimulatorTest >> testLoadingOfModel [
 { #category : 'tests' }
 OPDiagramSimulatorTest >> testResetClassMapping [
 
-	self controllerClass resetClassMapping.
-	self assert: (self controllerClass classFor: OPDummyOPElement new) identicalTo: OPDummyOPElementSimulator.
-	self controllerClass resetClassMapping.
+	self simulatorClass resetClassMapping.
+	self assert: (self simulatorClass classFor: OPDummyOPElement new) identicalTo: OPDummyOPElementSimulator.
+	self simulatorClass resetClassMapping.
 	self
-		assert: (self controllerClass hasSimulatorFor: OPDummyOPElement new)
+		assert: (self simulatorClass hasSimulatorFor: OPDummyOPElement new)
 		description: 'ClassMapping must re-initialize lazily after resetClassMapping'
 ]
 

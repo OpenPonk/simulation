@@ -11,13 +11,13 @@ Class {
 }
 
 { #category : 'hooks' }
-OPTokenTest >> controllerClass [
-	^ OPDummySubclassOfOPToken
+OPTokenTest >> prepareOneSimulable [
+	"do nothing"
 ]
 
 { #category : 'hooks' }
-OPTokenTest >> prepareOneSimulable [
-	"do nothing"
+OPTokenTest >> simulatorClass [
+	^ OPDummySubclassOfOPToken
 ]
 
 { #category : 'tests' }
@@ -28,7 +28,7 @@ OPTokenTest >> testElementAndDiagramSimulator [
 	diagramSimulator := OPDummySubclassOfOPDiagramSimulator model: diagramModel.
 	elementSimulator := OPDummySubclassOfOPElementSimulator model: OPDummyOPElement new diagramSimulator: diagramSimulator.
 
-	tokenFromElement := self controllerClass element: elementSimulator.
+	tokenFromElement := self simulatorClass element: elementSimulator.
 	self assert: tokenFromElement element identicalTo: elementSimulator.
 	self assert: tokenFromElement diagramSimulator identicalTo: diagramSimulator.
 	self assert: tokenFromElement diagram identicalTo: diagramModel.
@@ -37,7 +37,7 @@ OPTokenTest >> testElementAndDiagramSimulator [
 	self assert: tokenFromElement element identicalTo: nil.
 	self assert: tokenFromElement diagramSimulator identicalTo: nil.
 
-	tokenFromDiagram := self controllerClass diagramSimulator: diagramSimulator.
+	tokenFromDiagram := self simulatorClass diagramSimulator: diagramSimulator.
 	self assert: tokenFromDiagram element identicalTo: nil.
 	self assert: tokenFromDiagram diagramSimulator identicalTo: diagramSimulator.
 	self assert: tokenFromDiagram diagram identicalTo: diagramModel
