@@ -94,9 +94,8 @@ OPSimulationAnimator >> beginPhaseEntries: phaseEntries onCanvas: aCanvas [
 					aCanvas add: label.
 					activeOverlayShapes add: label.
 					entry at: #label put: label ].
-			(highlighter isNotNil and: [ transfer edgeModel isNotNil ]) ifTrue: [
-					highlighter highlightStrokeOfModel: transfer edgeModel color: (self edgeAccentColorFor: transfer) width: 3.
-					highlightedEdgeModels add: transfer edgeModel ] ]
+			highlighter highlightStrokeOfModel: transfer edgeModel color: (self edgeAccentColorFor: transfer) width: 3.
+			highlightedEdgeModels add: transfer edgeModel ]
 ]
 
 { #category : 'private' }
@@ -157,16 +156,13 @@ OPSimulationAnimator >> canvas [
 { #category : 'private' }
 OPSimulationAnimator >> cleanupOverlaysAndHighlights [
 
-	| canvas |
 	activeOverlayShapes copy do: [ :eachShape | eachShape remove ].
 	activeOverlayShapes removeAll.
-	highlighter ifNotNil: [ :activeHighlighter |
-			highlightedEdgeModels copy do: [ :eachEdge | activeHighlighter restoreStrokeOfModel: eachEdge ].
-			highlightedActorModels copy do: [ :eachActor | activeHighlighter restoreFillOfModel: eachActor ] ].
+	highlightedEdgeModels copy do: [ :eachEdge | highlighter restoreStrokeOfModel: eachEdge ].
+	highlightedActorModels copy do: [ :eachActor | highlighter restoreFillOfModel: eachActor ].
 	highlightedEdgeModels removeAll.
 	highlightedActorModels removeAll.
-	canvas := self canvas.
-	canvas ifNotNil: [ canvas signalUpdate ]
+	self canvas signalUpdate
 ]
 
 { #category : 'animating' }
@@ -228,9 +224,8 @@ OPSimulationAnimator >> endPhaseEntries: phaseEntries [
 			entry at: #label ifPresent: [ :label |
 					label remove.
 					activeOverlayShapes remove: label ifAbsent: [ ] ].
-			(highlighter isNotNil and: [ transfer edgeModel isNotNil ]) ifTrue: [
-					highlighter restoreStrokeOfModel: transfer edgeModel.
-					highlightedEdgeModels remove: transfer edgeModel ifAbsent: [ ] ] ]
+			highlighter restoreStrokeOfModel: transfer edgeModel.
+			highlightedEdgeModels remove: transfer edgeModel ifAbsent: [ ] ]
 ]
 
 { #category : 'private' }
@@ -251,7 +246,6 @@ OPSimulationAnimator >> finishAnimation: aSequenceAnimation [
 { #category : 'private' }
 OPSimulationAnimator >> highlightActorsFor: entries [
 
-	highlighter ifNil: [ ^ self ].
 	entries do: [ :entry |
 			(entry at: #transfer) actorModel ifNotNil: [ :actorModel |
 					highlighter highlightFillOfModel: actorModel color: self actorFillColor.
@@ -297,12 +291,6 @@ OPSimulationAnimator >> isEnabled: aBoolean [
 ]
 
 { #category : 'accessing' }
-OPSimulationAnimator >> liveAnimationChecker [
-
-	^ liveAnimationChecker
-]
-
-{ #category : 'accessing' }
 OPSimulationAnimator >> liveAnimationChecker: aBlock [
 
 	liveAnimationChecker := aBlock
@@ -341,11 +329,9 @@ OPSimulationAnimator >> pointAlongPolyline: points atDistance: aTargetDistance [
 			startPoint := points at: index.
 			endPoint := points at: index + 1.
 			segmentLength := startPoint distanceTo: endPoint.
-			traversed + segmentLength >= aTargetDistance ifTrue: [
+			(segmentLength > 0.0 and: [ traversed + segmentLength >= aTargetDistance ]) ifTrue: [
 					| localFraction delta |
-					localFraction := segmentLength > 0.0
-						                 ifTrue: [ aTargetDistance - traversed / segmentLength ]
-						                 ifFalse: [ 0.0 ].
+					localFraction := aTargetDistance - traversed / segmentLength.
 					delta := endPoint - startPoint.
 					^ startPoint + (delta * localFraction) ].
 			traversed := traversed + segmentLength ].
@@ -379,12 +365,10 @@ OPSimulationAnimator >> polylineLength: points [
 OPSimulationAnimator >> polylinePointsForTransfer: aTransfer [
 
 	| edgeController edgeShape |
-	diagramController ifNil: [ ^ nil ].
 	aTransfer edgeModel ifNil: [ ^ nil ].
 	edgeController := diagramController controllerForModel: aTransfer edgeModel ifNone: [ ^ nil ].
 	edgeController diagramElement exists ifFalse: [ ^ nil ].
 	edgeShape := edgeController roassalShape ifNil: [ ^ nil ].
-	edgeShape isLine ifFalse: [ ^ nil ].
 	edgeShape isControlPointsLine ifTrue: [
 			| controlPoints |
 			controlPoints := edgeShape controlPoints.
@@ -422,7 +406,7 @@ OPSimulationAnimator >> stopActiveAnimationAndSignal [
 	activeAnimation := nil.
 	animationToStop ifNotNil: [
 			animationToStop stop.
-			self canvas ifNotNil: [ :canvas | canvas animations remove: animationToStop ifAbsent: [ ] ] ].
+			self canvas animations remove: animationToStop ifAbsent: [ ] ].
 	self cleanupOverlaysAndHighlights.
 	semaphoreToSignal := completionSemaphore.
 	completionSemaphore := nil.

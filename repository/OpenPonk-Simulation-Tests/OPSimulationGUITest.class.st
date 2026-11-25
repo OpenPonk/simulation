@@ -97,6 +97,29 @@ OPSimulationGUITest >> tearDown [
 ]
 
 { #category : 'tests' }
+OPSimulationGUITest >> testAnimatorToggleResetAndClosedGuiStepSafety [
+
+	| completed |
+	simulationGui := OPTestSimulationGUI diagramController: diagramController.
+	self assert: simulationGui showsAnimationControl description: 'Simulation GUI must show animation toggle by default'.
+	self assert: simulationGui animator class identicalTo: OPSimulationAnimator.
+	self assert: simulationGui animator isEnabled description: 'Simulation GUI animator must start enabled'.
+
+	simulationGui controlsPresenter isAnimationEnabled: false.
+	self deny: simulationGui animator isEnabled description: 'Unchecking animation toggle must disable animator'.
+	simulationGui controlsPresenter isAnimationEnabled: true.
+	self assert: simulationGui animator isEnabled description: 'Checking animation toggle must re-enable animator'.
+
+	simulationGui session stepCompletionWaiter value.
+	simulationGui session reset.
+
+	simulationGui close.
+	completed := false.
+	simulationGui animateStepEvent: (OPSimulatorStepped simulator: nil transfers: #(  )) onCompleted: [ completed := true ].
+	self assert: completed description: 'Closed simulation GUI must still execute completion callback immediately'
+]
+
+{ #category : 'tests' }
 OPSimulationGUITest >> testButtonItemsAndModularCompositionWithoutMandatoryButtons [
 
 	| buttonsByLabel saveCountBefore loadCountBefore |

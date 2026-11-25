@@ -140,6 +140,41 @@ OPSimulationAnimatorTest >> testCancelRemovesOverlaysRestoresHighlightsAndUnbloc
 ]
 
 { #category : 'tests' }
+OPSimulationAnimatorTest >> testDefaultLiveAnimationCheckerSkipsHeadlessCanvasAndEmptyOrNilEdgeTransfers [
+
+	| defaultAnimator completedCount nilEdgeTransfer |
+	defaultAnimator := OPSimulationAnimator on: diagramController highlighter: highlighter.
+	diagramController showInDiagramModel: firstElement.
+	diagramController showInDiagramModel: secondElement.
+	diagramController showInDiagramModel: firstEdge.
+	completedCount := 0.
+
+	defaultAnimator
+		animateTransfers: { (OPSimulationTransfer source: firstElement edge: firstEdge target: secondElement) }
+		delay: 1000
+		isPlaying: true
+		onCompleted: [ completedCount := completedCount + 1 ].
+	self assert: defaultAnimator activeAnimation identicalTo: nil.
+	self assert: completedCount equals: 1.
+
+	animator
+		animateTransfers: #(  )
+		delay: 1000
+		isPlaying: true
+		onCompleted: [ completedCount := completedCount + 1 ].
+	self assert: completedCount equals: 2.
+
+	nilEdgeTransfer := OPSimulationTransfer source: firstElement edge: nil target: secondElement.
+	animator
+		animateTransfers: { nilEdgeTransfer }
+		delay: 1000
+		isPlaying: true
+		onCompleted: [ completedCount := completedCount + 1 ].
+	self assert: animator activeAnimation identicalTo: nil.
+	self assert: completedCount equals: 3
+]
+
+{ #category : 'tests' }
 OPSimulationAnimatorTest >> testDeferredCompletionRunsAfterAnimationEndsOrOnCompleteImmediatelyNotOnCancel [
 
 	| firstController secondController completedCount transfer sequenceAnimation phaseAnim |
@@ -252,8 +287,9 @@ OPSimulationAnimatorTest >> testDurationScalingForPlayAndManualStep [
 { #category : 'tests' }
 OPSimulationAnimatorTest >> testPointAlongPolylineInterpolatesByArcLengthAcrossBends [
 
-	| points |
+	| points degeneratePoints |
 	points := {
+		          (0 @ 0).
 		          (0 @ 0).
 		          (100 @ 0).
 		          (100 @ 100) }.
@@ -261,7 +297,49 @@ OPSimulationAnimatorTest >> testPointAlongPolylineInterpolatesByArcLengthAcrossB
 	self assert: (animator pointAlongPolyline: points atProgress: 0.25) equals: 50 @ 0.
 	self assert: (animator pointAlongPolyline: points atProgress: 0.5) equals: 100 @ 0.
 	self assert: (animator pointAlongPolyline: points atProgress: 0.75) equals: 100 @ 50.
-	self assert: (animator pointAlongPolyline: points atProgress: 1) equals: 100 @ 100
+	self assert: (animator pointAlongPolyline: points atProgress: 1) equals: 100 @ 100.
+
+	self assert: (animator pointAlongPolyline: #(  ) atProgress: 0.5) equals: 0 @ 0.
+	self assert: (animator pointAlongPolyline: { (12 @ 34) } atProgress: 0.5) equals: 12 @ 34.
+	degeneratePoints := {
+		                    (5 @ 5).
+		                    (5 @ 5) }.
+	self assert: (animator pointAlongPolyline: degeneratePoints atProgress: 0.5) equals: 5 @ 5.
+	self assert: (animator pointAlongPolyline: points atDistance: 250) equals: 100 @ 100
+]
+
+{ #category : 'tests' }
+OPSimulationAnimatorTest >> testPolylineControlPointsAndStaleAnimationFinishAreHandledSafely [
+
+	| firstController secondController edgeController polyline transfer sequenceAnimation |
+	firstController := diagramController showInDiagramModel: firstElement.
+	secondController := diagramController showInDiagramModel: secondElement.
+	edgeController := diagramController showInDiagramModel: firstEdge.
+	polyline := OPRSPolyline new
+		            controlPoints: {
+				            (0 @ 0).
+				            (50 @ 0).
+				            (50 @ 50) };
+		            yourself.
+	edgeController diagramElement instVarNamed: #roassalShape put: polyline.
+	transfer := OPSimulationTransfer source: firstElement edge: firstEdge target: secondElement.
+
+	self assert: (animator polylinePointsForTransfer: transfer) equals: {
+			(0 @ 0).
+			(50 @ 0).
+			(50 @ 50) }.
+
+	polyline controlPoints: { (0 @ 0) }.
+	self assert: (animator polylinePointsForTransfer: transfer) identicalTo: nil.
+
+	polyline controlPoints: {
+			(0 @ 0).
+			(100 @ 0) }.
+	animator animateTransfers: { transfer } delay: 1000 isPlaying: true.
+	sequenceAnimation := animator activeAnimation.
+	animator cancel.
+	animator finishAnimation: sequenceAnimation.
+	self assert: animator activeAnimation identicalTo: nil
 ]
 
 { #category : 'tests' }

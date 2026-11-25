@@ -238,6 +238,7 @@ OPSimulationHighlighterTest >> testRestoreFillAndStrokeIndependentlyPreservesOth
 	originalBorderWidth := firstShape border width.
 
 	highlighter
+		highlightStrokeOfController: firstController color: Color green darker;
 		highlightStrokeOfModel: firstElement color: Color green darker width: 2;
 		highlightFillOfModel: firstElement color: Color lightOrange lighter.
 
@@ -248,7 +249,17 @@ OPSimulationHighlighterTest >> testRestoreFillAndStrokeIndependentlyPreservesOth
 
 	highlighter restoreStrokeOfModel: firstElement.
 	self assert: firstShape borderColor equals: originalBorderColor.
-	self assert: firstShape border width equals: originalBorderWidth
+	self assert: firstShape border width equals: originalBorderWidth.
+
+	highlighter
+		highlightFillOfModel: firstElement color: Color yellow;
+		highlightStrokeOfModel: firstElement color: Color red width: 3.
+	firstController removeRender.
+	highlighter
+		restoreFillOfModel: firstElement;
+		restoreStrokeOfModel: firstElement.
+	self assertEmpty: (highlighter instVarNamed: #originalFillColors).
+	self assertEmpty: (highlighter instVarNamed: #originalBorderStates)
 ]
 
 { #category : 'tests' }

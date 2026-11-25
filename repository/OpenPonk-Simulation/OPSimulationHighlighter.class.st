@@ -122,7 +122,7 @@ OPSimulationHighlighter >> highlightStrokeOfController: aController color: aColo
 { #category : 'highlighting' }
 OPSimulationHighlighter >> highlightStrokeOfModel: aModel color: aColor [
 
-	self highlightStrokeOfModel: aModel color: aColor width: nil
+	self renderedControllerForModel: aModel ifPresent: [ :controller | self highlightStrokeOfController: controller color: aColor ]
 ]
 
 { #category : 'highlighting' }

@@ -57,11 +57,13 @@ OPSimulationControlsGUITest >> testAnimationToggleDefaultsEnabledAndNotifiesCall
 	controlsGui onAnimationToggled: [ :isEnabled | observedStates add: isEnabled ].
 
 	self assert: controlsGui showsAnimationControl description: 'Animation toggle control must be shown by default'.
+	self assert: controlsGui animateCheckBox label equals: 'Animate steps'.
 	self assert: controlsGui isAnimationEnabled description: 'Animation must be enabled by default'.
 
 	controlsGui isAnimationEnabled: false.
 	self deny: controlsGui isAnimationEnabled description: 'Setting animation disabled must update checkbox state'.
-	self assert: observedStates last equals: false.
+	self deny: controlsGui animateCheckBox state description: 'Checkbox presenter state must mirror disabled state'.
+	self assert: observedStates asArray equals: #( false ).
 
 	heightWithAnimation := controlsGui preferredHeight.
 	controlsGui showsAnimationControl: false.
