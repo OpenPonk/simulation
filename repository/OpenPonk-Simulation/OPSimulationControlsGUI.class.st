@@ -12,12 +12,21 @@ Class {
 		'showsDelayControl',
 		'delayLabel',
 		'delayDropList',
-		'onDelayChangedBlock'
+		'onDelayChangedBlock',
+		'showsAnimationControl',
+		'animateCheckBox',
+		'onAnimationToggledBlock'
 	],
 	#category : 'OpenPonk-Simulation-Simulation',
 	#package : 'OpenPonk-Simulation',
 	#tag : 'Simulation'
 }
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> animateCheckBox [
+
+	^ animateCheckBox
+]
 
 { #category : 'accessing' }
 OPSimulationControlsGUI >> buttons [
@@ -73,6 +82,7 @@ OPSimulationControlsGUI >> initializePresenters [
 	buttons := OrderedCollection new.
 	stepButtons := OrderedCollection new.
 	showsDelayControl := true.
+	showsAnimationControl := true.
 	delayLabel := self newLabel
 		              label: 'Step delay:';
 		              yourself.
@@ -82,9 +92,32 @@ OPSimulationControlsGUI >> initializePresenters [
 		items: self defaultDelayOptions;
 		whenSelectedItemChangedDo: [ :selectedOption |
 			(selectedOption isNotNil and: [ onDelayChangedBlock isNotNil ]) ifTrue: [ onDelayChangedBlock value: selectedOption value ] ].
+	animateCheckBox := self newCheckBox
+		                   label: 'Animate steps';
+		                   state: true;
+		                   whenChangedDo: [ :isChecked | onAnimationToggledBlock ifNotNil: [ :callback | callback value: isChecked ] ];
+		                   yourself.
 	self
 		selectDelay: 1000;
 		refreshLayout
+]
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> isAnimationEnabled [
+
+	^ animateCheckBox state
+]
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> isAnimationEnabled: aBoolean [
+
+	animateCheckBox state: aBoolean
+]
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> onAnimationToggled: aBlock [
+
+	onAnimationToggledBlock := aBlock
 ]
 
 { #category : 'accessing' }
@@ -98,6 +131,8 @@ OPSimulationControlsGUI >> preferredHeight [
 
 	| rowCount |
 	rowCount := (buttons size max: 1) + (self showsDelayControl
+		             ifTrue: [ 1 ]
+		             ifFalse: [ 0 ]) + (self showsAnimationControl
 		             ifTrue: [ 1 ]
 		             ifFalse: [ 0 ]).
 	^ rowCount * (self class buttonHeight + 4) + 16
@@ -126,6 +161,7 @@ OPSimulationControlsGUI >> refreshLayout [
 						 add: delayDropList;
 						 yourself)
 				height: self class buttonHeight ].
+	self showsAnimationControl ifTrue: [ boxLayout add: animateCheckBox height: self class buttonHeight ].
 	self layout: boxLayout
 ]
 
@@ -155,6 +191,19 @@ OPSimulationControlsGUI >> selectDelay: aMilliseconds [
 OPSimulationControlsGUI >> selectedDelay [
 
 	^ delayDropList selectedItem ifNotNil: [ :selectedOption | selectedOption value ]
+]
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> showsAnimationControl [
+
+	^ showsAnimationControl
+]
+
+{ #category : 'accessing' }
+OPSimulationControlsGUI >> showsAnimationControl: aBoolean [
+
+	showsAnimationControl := aBoolean.
+	self refreshLayout
 ]
 
 { #category : 'accessing' }

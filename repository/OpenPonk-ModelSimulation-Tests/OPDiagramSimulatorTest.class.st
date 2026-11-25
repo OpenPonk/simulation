@@ -107,6 +107,41 @@ OPDiagramSimulatorTest >> testLoadingOfModel [
 ]
 
 { #category : 'tests' }
+OPDiagramSimulatorTest >> testRecordTransferCapturedDuringStepAndClearedBetweenSteps [
+
+	| steppedEvents sourceModel targetModel edgeModel transfer |
+	steppedEvents := OrderedCollection new.
+	sourceModel := diagram elements first.
+	targetModel := diagram elements second.
+	edgeModel := diagram elements last.
+	transfer := (OPSimulationTransfer source: sourceModel edge: edgeModel target: targetModel)
+		            actorModel: sourceModel;
+		            amount: 2;
+		            phase: 1;
+		            kind: #token;
+		            yourself.
+	simulator recordTransfer: transfer.
+	simulator when: OPSimulatorStepped do: [ :event | steppedEvents add: event ] for: self.
+	simulator elements first steppable: true.
+	simulator
+		fromSteppableElements;
+		orderAny;
+		priorityAny;
+		selectAll;
+		addAction: [ :item | simulator recordTransfer: transfer ].
+
+	simulator step.
+	self assert: steppedEvents size equals: 1.
+	self assert: steppedEvents first transfers equals: { transfer }.
+
+	simulator resetActions.
+	simulator addAction: [ :item |  ].
+	simulator step.
+	self assert: steppedEvents size equals: 2.
+	self assertEmpty: steppedEvents second transfers
+]
+
+{ #category : 'tests' }
 OPDiagramSimulatorTest >> testResetClassMapping [
 
 	self simulatorClass resetClassMapping.
@@ -168,6 +203,71 @@ OPDiagramSimulatorTest >> testStep [
 	simulator elements second steppable: true.
 	simulator step.
 	self assert: (simulator elements sum: [ :each | each state ]) equals: 6
+]
+
+{ #category : 'tests' }
+OPDiagramSimulatorTest >> testStepCycleWaiterWaitsBeforeNextRepeatedStepAndStopsCleanly [
+
+	| stepCount firstStepStarted releaseBarrier secondStepReached waiterCalls |
+	stepCount := 0.
+	waiterCalls := 0.
+	firstStepStarted := Semaphore new.
+	releaseBarrier := Semaphore new.
+	secondStepReached := Semaphore new.
+	simulator elements first steppable: true.
+	simulator
+		delay: 10;
+		fromSteppableElements;
+		addAction: [ :item |
+				stepCount := stepCount + 1.
+				stepCount = 1 ifTrue: [ firstStepStarted signal ].
+				stepCount = 2 ifTrue: [ secondStepReached signal ] ];
+		stepCycleWaiter: [ :elapsedMs :delayMs :waitSemaphore |
+				waiterCalls := waiterCalls + 1.
+				releaseBarrier wait ].
+
+	[
+		simulator repeat.
+		self deny: (firstStepStarted waitTimeoutSeconds: 2) description: 'First repeated step must execute promptly'.
+		self
+			assert: (secondStepReached waitTimeoutMilliseconds: 80)
+			description: 'Second repeated step must wait while stepCycleWaiter blocks'.
+		self assert: stepCount equals: 1.
+		self assert: waiterCalls equals: 1.
+
+		releaseBarrier signal.
+		self
+			deny: (secondStepReached waitTimeoutSeconds: 2)
+			description: 'Second repeated step must proceed once stepCycleWaiter unblocks'.
+		self assert: stepCount >= 2 description: 'At least two steps must execute after releasing barrier' ] ensure: [
+			releaseBarrier signal.
+			simulator stop ]
+]
+
+{ #category : 'tests' }
+OPDiagramSimulatorTest >> testStepElementRecordsTransfersAndAnnouncesStepped [
+
+	| steppedEvents elementSimulator transfer |
+	steppedEvents := OrderedCollection new.
+	elementSimulator := OPDummySubclassOfOPElementSimulator new
+		                    steppable: true;
+		                    addAction: [ :item |
+				                    transfer := OPSimulationTransfer
+					                                source: diagram elements first
+					                                edge: diagram elements last
+					                                target: diagram elements second.
+				                    simulator recordTransfer: transfer ];
+		                    yourself.
+	simulator when: OPSimulatorStepped do: [ :event | steppedEvents add: event ] for: self.
+
+	simulator stepElement: elementSimulator.
+	self assert: steppedEvents size equals: 1.
+	self assert: steppedEvents first simulator identicalTo: simulator.
+	self assert: steppedEvents first transfers equals: { transfer }.
+
+	elementSimulator steppable: false.
+	simulator stepElement: elementSimulator.
+	self assert: steppedEvents size equals: 1
 ]
 
 { #category : 'tests' }

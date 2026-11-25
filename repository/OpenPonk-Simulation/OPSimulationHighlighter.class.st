@@ -98,22 +98,39 @@ OPSimulationHighlighter >> highlightFillOfModel: aModel color: aColor [
 { #category : 'highlighting' }
 OPSimulationHighlighter >> highlightStrokeOfController: aController color: aColor [
 
+	self highlightStrokeOfController: aController color: aColor width: nil
+]
+
+{ #category : 'highlighting' }
+OPSimulationHighlighter >> highlightStrokeOfController: aController color: aColor width: aWidthOrNil [
+
 	| shape |
 	shape := self renderedShapeForController: aController ifAbsent: [ ^ self ].
-	shape isLine ifTrue: [ ^ self highlightFillOfController: aController color: aColor ].
 	self recordBatchController: aController.
-	originalBorderStates at: aController ifAbsentPut: [
-			shape hasBorder
-				ifTrue: [ shape borderColor ]
-				ifFalse: [ #noBorder ] ].
-	shape borderColor: aColor.
+	originalBorderStates at: aController ifAbsentPut: [ self snapshotBorderStateOf: shape ].
+	shape hasBorder ifTrue: [ shape border: shape border copy ].
+	shape isLine
+		ifTrue: [
+				shape color: aColor.
+				aWidthOrNil ifNotNil: [ :lineWidth | shape width: lineWidth ] ]
+		ifFalse: [
+				shape borderColor: aColor.
+				aWidthOrNil ifNotNil: [ :borderWidth | shape borderWidth: borderWidth ] ].
 	shape signalUpdate
 ]
 
 { #category : 'highlighting' }
 OPSimulationHighlighter >> highlightStrokeOfModel: aModel color: aColor [
 
-	self renderedControllerForModel: aModel ifPresent: [ :controller | self highlightStrokeOfController: controller color: aColor ]
+	self highlightStrokeOfModel: aModel color: aColor width: nil
+]
+
+{ #category : 'highlighting' }
+OPSimulationHighlighter >> highlightStrokeOfModel: aModel color: aColor width: aWidthOrNil [
+
+	self
+		renderedControllerForModel: aModel
+		ifPresent: [ :controller | self highlightStrokeOfController: controller color: aColor width: aWidthOrNil ]
 ]
 
 { #category : 'initialization' }
@@ -178,9 +195,9 @@ OPSimulationHighlighter >> restoreBorderOf: aShape for: aController [
 			aShape hasBorder ifFalse: [ ^ false ].
 			aShape noBorder.
 			^ true ].
-	(aShape hasBorder and: [ aShape borderColor = originalBorderState ]) ifTrue: [ ^ false ].
-	aShape borderColor: originalBorderState.
-	^ true
+	^ aShape isLine
+		  ifTrue: [ self restoreLineStrokeOf: aShape color: originalBorderState first width: originalBorderState second ]
+		  ifFalse: [ self restoreNodeBorderOf: aShape color: originalBorderState first width: originalBorderState second ]
 ]
 
 { #category : 'highlighting' }
@@ -208,10 +225,73 @@ OPSimulationHighlighter >> restoreFillOf: aShape for: aController [
 ]
 
 { #category : 'highlighting' }
+OPSimulationHighlighter >> restoreFillOfController: aController [
+
+	| shape |
+	(flashProcesses removeKey: aController ifAbsent: [ nil ]) ifNotNil: [ :existingProcess | existingProcess terminate ].
+	shape := self renderedShapeForController: aController ifAbsent: [
+			         originalFillColors removeKey: aController ifAbsent: [ ].
+			         ^ self ].
+	(self restoreFillOf: shape for: aController) ifTrue: [ shape signalUpdate ]
+]
+
+{ #category : 'highlighting' }
+OPSimulationHighlighter >> restoreFillOfModel: aModel [
+
+	diagramController ifNil: [ ^ self ].
+	diagramController controllerForModel: aModel ifFound: [ :controller | self restoreFillOfController: controller ] ifNone: [ ]
+]
+
+{ #category : 'private' }
+OPSimulationHighlighter >> restoreLineStrokeOf: aShape color: anOriginalColor width: anOriginalWidth [
+
+	| changed |
+	changed := false.
+	aShape color = anOriginalColor ifFalse: [
+			aShape color: anOriginalColor.
+			changed := true ].
+	(aShape hasBorder not or: [ aShape border width ~= anOriginalWidth ]) ifTrue: [
+			aShape width: anOriginalWidth.
+			changed := true ].
+	^ changed
+]
+
+{ #category : 'highlighting' }
 OPSimulationHighlighter >> restoreModel: aModel [
 
 	diagramController ifNil: [ ^ self ].
 	diagramController controllerForModel: aModel ifFound: [ :controller | self restoreController: controller ] ifNone: [ ]
+]
+
+{ #category : 'private' }
+OPSimulationHighlighter >> restoreNodeBorderOf: aShape color: anOriginalColor width: anOriginalWidth [
+
+	| changed |
+	changed := false.
+	(aShape hasBorder and: [ aShape borderColor = anOriginalColor ]) ifFalse: [
+			aShape borderColor: anOriginalColor.
+			changed := true ].
+	(aShape hasBorder and: [ aShape border width = anOriginalWidth ]) ifFalse: [
+			aShape borderWidth: anOriginalWidth.
+			changed := true ].
+	^ changed
+]
+
+{ #category : 'highlighting' }
+OPSimulationHighlighter >> restoreStrokeOfController: aController [
+
+	| shape |
+	shape := self renderedShapeForController: aController ifAbsent: [
+			         originalBorderStates removeKey: aController ifAbsent: [ ].
+			         ^ self ].
+	(self restoreBorderOf: shape for: aController) ifTrue: [ shape signalUpdate ]
+]
+
+{ #category : 'highlighting' }
+OPSimulationHighlighter >> restoreStrokeOfModel: aModel [
+
+	diagramController ifNil: [ ^ self ].
+	diagramController controllerForModel: aModel ifFound: [ :controller | self restoreStrokeOfController: controller ] ifNone: [ ]
 ]
 
 { #category : 'private' }
@@ -225,6 +305,23 @@ OPSimulationHighlighter >> scheduleFlashRestoreFor: aController duration: aDurat
 		                self uiDispatcher value: [ self finishFlashRestoreFor: aController process: currentProcess ] ] newProcess.
 	flashProcesses at: aController put: timerProcess.
 	timerProcess resume
+]
+
+{ #category : 'private' }
+OPSimulationHighlighter >> snapshotBorderStateOf: aShape [
+
+	aShape isLine ifTrue: [
+			^ {
+				  aShape color.
+				  (aShape hasBorder
+					   ifTrue: [ aShape border width ]
+					   ifFalse: [ 1 ]) } ].
+	^ aShape hasBorder
+		  ifTrue: [
+				  {
+					  aShape borderColor.
+					  aShape border width } ]
+		  ifFalse: [ #noBorder ]
 ]
 
 { #category : 'accessing' }

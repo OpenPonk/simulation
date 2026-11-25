@@ -50,6 +50,26 @@ OPSimulationControlsGUITest >> testAccessorsAndUpdateRunningStateWithoutPlayPaus
 ]
 
 { #category : 'tests' }
+OPSimulationControlsGUITest >> testAnimationToggleDefaultsEnabledAndNotifiesCallback [
+
+	| observedStates heightWithAnimation heightWithoutAnimation |
+	observedStates := OrderedCollection new.
+	controlsGui onAnimationToggled: [ :isEnabled | observedStates add: isEnabled ].
+
+	self assert: controlsGui showsAnimationControl description: 'Animation toggle control must be shown by default'.
+	self assert: controlsGui isAnimationEnabled description: 'Animation must be enabled by default'.
+
+	controlsGui isAnimationEnabled: false.
+	self deny: controlsGui isAnimationEnabled description: 'Setting animation disabled must update checkbox state'.
+	self assert: observedStates last equals: false.
+
+	heightWithAnimation := controlsGui preferredHeight.
+	controlsGui showsAnimationControl: false.
+	heightWithoutAnimation := controlsGui preferredHeight.
+	self assert: heightWithoutAnimation < heightWithAnimation description: 'Hiding animation toggle must reduce preferred height'
+]
+
+{ #category : 'tests' }
 OPSimulationControlsGUITest >> testDelaySelectionAndPreferredHeightScaling [
 
 	| selectedDelays heightWithDelay heightWithoutDelay |

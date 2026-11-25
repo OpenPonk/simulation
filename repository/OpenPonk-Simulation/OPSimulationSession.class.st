@@ -12,7 +12,8 @@ Class {
 		'uiDispatcher',
 		'pendingStepSemaphores',
 		'callbacks',
-		'isActive'
+		'isActive',
+		'stepCompletionWaiter'
 	],
 	#category : 'OpenPonk-Simulation-Simulation',
 	#package : 'OpenPonk-Simulation',
@@ -41,6 +42,7 @@ OPSimulationSession >> close [
 
 	isActive ifFalse: [ ^ self ].
 	isActive := false.
+	self invokeCallback: #cancelVisuals.
 	self unsubscribeFromDiagram.
 	self tearDownSimulator.
 	self invokeCallback: #closed
@@ -127,6 +129,7 @@ OPSimulationSession >> initialize [
 	super initialize.
 	delayInMilliseconds := 1000.
 	uiDispatcher := self defaultUiDispatcher.
+	stepCompletionWaiter := [ ].
 	pendingStepSemaphores := IdentitySet new.
 	callbacks := IdentityDictionary new.
 	isActive := false
@@ -162,7 +165,9 @@ OPSimulationSession >> loadSimulator [
 	diagramSimulator := simulatorClass model: self diagramModel.
 	diagramSimulator
 		delay: delayInMilliseconds;
-		stepRunner: [ :aBlock | self dispatchToUI: aBlock ].
+		stepRunner: [ :aBlock | self dispatchToUI: aBlock ];
+		stepCycleWaiter: [ :elapsedMs :delayMs :waitSemaphore |
+			self waitForStepCycleAfter: elapsedMs delay: delayMs waitSemaphore: waitSemaphore ].
 	self subscribeToSimulator
 ]
 
@@ -170,6 +175,12 @@ OPSimulationSession >> loadSimulator [
 OPSimulationSession >> onAction: aBlock [
 
 	callbacks at: #action put: aBlock
+]
+
+{ #category : 'callbacks' }
+OPSimulationSession >> onCancelVisuals: aBlock [
+
+	callbacks at: #cancelVisuals put: aBlock
 ]
 
 { #category : 'callbacks' }
@@ -208,9 +219,16 @@ OPSimulationSession >> onWillReload: aBlock [
 	callbacks at: #willReload put: aBlock
 ]
 
+{ #category : 'callbacks' }
+OPSimulationSession >> onWillStep: aBlock [
+
+	callbacks at: #willStep put: aBlock
+]
+
 { #category : 'actions' }
 OPSimulationSession >> pause [
 
+	self invokeCallback: #cancelVisuals.
 	self cancelPendingStepWaits.
 	diagramSimulator ifNotNil: [ :simulator | simulator stop ]
 ]
@@ -225,6 +243,7 @@ OPSimulationSession >> play [
 OPSimulationSession >> reload [
 
 	isActive ifFalse: [ ^ self ].
+	self invokeCallback: #cancelVisuals.
 	self invokeCallback: #willReload.
 	self tearDownSimulator.
 	self loadSimulator.
@@ -234,6 +253,7 @@ OPSimulationSession >> reload [
 { #category : 'actions' }
 OPSimulationSession >> reset [
 
+	self invokeCallback: #cancelVisuals.
 	self cancelPendingStepWaits.
 	diagramSimulator ifNotNil: [ :simulator | simulator reset ]
 ]
@@ -269,7 +289,20 @@ OPSimulationSession >> start [
 { #category : 'actions' }
 OPSimulationSession >> step [
 
+	self invokeCallback: #cancelVisuals.
 	diagramSimulator ifNotNil: [ :simulator | simulator step ]
+]
+
+{ #category : 'accessing' }
+OPSimulationSession >> stepCompletionWaiter [
+
+	^ stepCompletionWaiter
+]
+
+{ #category : 'accessing' }
+OPSimulationSession >> stepCompletionWaiter: aBlock [
+
+	stepCompletionWaiter := aBlock
 ]
 
 { #category : 'actions' }
@@ -277,8 +310,9 @@ OPSimulationSession >> stepElementController: anElementController [
 
 	| elementSimulator |
 	diagramSimulator ifNil: [ ^ self ].
+	self invokeCallback: #cancelVisuals.
 	elementSimulator := diagramSimulator simulatorOf: anElementController model.
-	elementSimulator step
+	diagramSimulator stepElement: elementSimulator
 ]
 
 { #category : 'private' }
@@ -295,6 +329,7 @@ OPSimulationSession >> subscribeToSimulator [
 	diagramSimulator
 		when: OPSimulatorWillRun do: [ self invokeCallback: #runningStateChanged with: true ] for: self;
 		when: OPSimulatorStoppedRun do: [ self invokeCallback: #runningStateChanged with: false ] for: self;
+		when: OPSimulatorWillStep do: [ :event | self invokeCallback: #willStep with: event ] for: self;
 		when: OPSimulatorStepped do: [ :event | self invokeCallback: #stepped with: event ] for: self;
 		when: OPSimulatorReset do: [ :event | self invokeCallback: #reset with: event ] for: self.
 	diagramSimulator simulableElementsDo: [ :eachElement |
@@ -340,4 +375,19 @@ OPSimulationSession >> unsubscribeFromDiagram [
 	diagramController ifNil: [ ^ self ].
 	self diagramModel ifNotNil: [ :diagramModel | diagramModel announcer unsubscribe: self ].
 	diagramController workbenchAnnouncer ifNotNil: [ :workbenchAnnouncer | workbenchAnnouncer unsubscribe: self ]
+]
+
+{ #category : 'private' }
+OPSimulationSession >> waitForStepCycleAfter: elapsedMs delay: delayMs waitSemaphore: aWaitSemaphore [
+
+	| waitStartMs visualWaitMs totalElapsedMs remainingMs |
+	waitStartMs := Time millisecondClockValue.
+	self stepCompletionWaiter value.
+	self isRunning ifFalse: [ ^ self ].
+	visualWaitMs := Time millisecondsSince: waitStartMs.
+	totalElapsedMs := elapsedMs + visualWaitMs.
+	remainingMs := delayMs - totalElapsedMs.
+	remainingMs > 0
+		ifTrue: [ aWaitSemaphore waitTimeoutMilliseconds: remainingMs ]
+		ifFalse: [ visualWaitMs > 0 ifTrue: [ aWaitSemaphore waitTimeoutMilliseconds: 50 ] ]
 ]

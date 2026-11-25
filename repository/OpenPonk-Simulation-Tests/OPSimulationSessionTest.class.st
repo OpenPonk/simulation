@@ -173,6 +173,45 @@ OPSimulationSessionTest >> testDefaultUiDispatcherExecutesOnUiThreadAndCancelsPe
 ]
 
 { #category : 'tests' }
+OPSimulationSessionTest >> testPlayWaitsForStepCompletionWaiterBeyondDelayAndPauseUnblocks [
+
+	| stepCount firstStepStarted secondStepReached releaseVisualBarrier cancelCount |
+	stepCount := 0.
+	cancelCount := 0.
+	firstStepStarted := Semaphore new.
+	secondStepReached := Semaphore new.
+	releaseVisualBarrier := Semaphore new.
+	session := OPSimulationSession diagramController: diagramController simulatorClass: OPTestSimulationDiagramSimulator.
+	session
+		uiDispatcher: [ :aBlock | aBlock value ];
+		delay: 20;
+		onCancelVisuals: [
+				cancelCount := cancelCount + 1.
+				releaseVisualBarrier signal ];
+		stepCompletionWaiter: [ releaseVisualBarrier wait ];
+		onStepped: [ :event |
+				stepCount := stepCount + 1.
+				stepCount = 1 ifTrue: [ firstStepStarted signal ].
+				stepCount = 2 ifTrue: [ secondStepReached signal ] ];
+		start.
+	session diagramSimulator addAction: [ :item | item step ].
+
+	session play.
+	self deny: (firstStepStarted waitTimeoutSeconds: 2) description: 'First step must execute promptly'.
+	self
+		assert: (secondStepReached waitTimeoutMilliseconds: 80)
+		description: 'Second step must wait until visual completion waiter returns even beyond delay'.
+	self assert: stepCount equals: 1.
+
+	releaseVisualBarrier signal.
+	self deny: (secondStepReached waitTimeoutSeconds: 2) description: 'Second step must run once visual animation completes'.
+
+	session pause.
+	self deny: session isRunning description: 'Pause must stop playback even while waiting for visual completion'.
+	self assert: cancelCount >= 1 description: 'Pause must invoke onCancelVisuals to release visual barriers'
+]
+
+{ #category : 'tests' }
 OPSimulationSessionTest >> testReloadPreservesDelayAndRebuildsSimulatorOnModelChildrenChanged [
 
 	| willReloadCount reloadedCount initialSimulator thirdElement |
@@ -228,4 +267,27 @@ OPSimulationSessionTest >> testStepActionCallbackIdempotentStartInactiveReloadAn
 	self assert: stepEvents size equals: 1.
 	self assert: actionEvents size equals: 1.
 	self assert: actionEvents first simulator identicalTo: (firstSimulator simulatorOf: firstElement)
+]
+
+{ #category : 'tests' }
+OPSimulationSessionTest >> testStepInvokesWillStepAndStepElementControllerAnnouncesStepped [
+
+	| willStepCount steppedEvents |
+	willStepCount := 0.
+	steppedEvents := OrderedCollection new.
+	session := OPSimulationSession diagramController: diagramController simulatorClass: OPTestSimulationDiagramSimulator.
+	session
+		uiDispatcher: [ :aBlock | aBlock value ];
+		onWillStep: [ willStepCount := willStepCount + 1 ];
+		onStepped: [ :event | steppedEvents add: event ];
+		start.
+	session diagramSimulator addAction: [ :item | item step ].
+
+	session step.
+	self assert: willStepCount equals: 1.
+	self assert: steppedEvents size equals: 1.
+
+	session stepElementController: elementController.
+	self assert: willStepCount equals: 2.
+	self assert: steppedEvents size equals: 2
 ]

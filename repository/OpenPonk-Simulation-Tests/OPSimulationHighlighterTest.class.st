@@ -148,6 +148,45 @@ OPSimulationHighlighterTest >> testFlashFillCancelsPreviousTimerIgnoresStaleRest
 ]
 
 { #category : 'tests' }
+OPSimulationHighlighterTest >> testHighlightStrokeWithWidthPreservesAndRestoresNodeAndLineWidths [
+
+	| firstController secondController relationController firstShape secondShape relationShape originalNodeWidth originalLineWidth |
+	firstController := diagramController showInDiagramModel: firstElement.
+	secondController := diagramController showInDiagramModel: secondElement.
+	relationController := diagramController showInDiagramModel: relationElement.
+	firstShape := firstController roassalShape.
+	secondShape := secondController roassalShape.
+	relationShape := relationController roassalShape.
+
+	firstShape borderColor: Color blue.
+	firstShape borderWidth: 1.5.
+	originalNodeWidth := firstShape border width.
+	secondShape noBorder.
+	relationShape color: Color black.
+	relationShape width: 1.
+	originalLineWidth := relationShape border width.
+
+	highlighter
+		highlightStrokeOfModel: firstElement color: Color green darker width: 3;
+		highlightStrokeOfModel: secondElement color: Color orange width: 2.5;
+		highlightStrokeOfModel: relationElement color: Color orange width: 3.
+
+	self assert: firstShape borderColor equals: Color green darker.
+	self assert: firstShape border width equals: 3.
+	self assert: secondShape borderColor equals: Color orange.
+	self assert: secondShape border width equals: 2.5.
+	self assert: relationShape color equals: Color orange.
+	self assert: relationShape border width equals: 3.
+
+	highlighter clearAll.
+	self assert: firstShape borderColor equals: Color blue.
+	self assert: firstShape border width equals: originalNodeWidth.
+	self deny: secondShape hasBorder description: 'Clearing stroke highlight must restore noBorder on originally borderless shape'.
+	self assert: relationShape color equals: Color black.
+	self assert: relationShape border width equals: originalLineWidth
+]
+
+{ #category : 'tests' }
 OPSimulationHighlighterTest >> testIgnoresHiddenAndUnrenderedElements [
 
 	| firstController |
@@ -183,6 +222,33 @@ OPSimulationHighlighterTest >> testReplaceHighlightsDuringRestoresInactiveElemen
 	highlighter replaceHighlightsDuring: [ highlighter highlightFillOfModel: secondElement color: Color yellow ].
 	self assert: firstShape color equals: originalFirstColor.
 	self assert: secondShape color equals: Color yellow
+]
+
+{ #category : 'tests' }
+OPSimulationHighlighterTest >> testRestoreFillAndStrokeIndependentlyPreservesOtherHighlight [
+
+	| firstController firstShape originalFill originalBorderColor originalBorderWidth |
+	firstController := diagramController showInDiagramModel: firstElement.
+	firstShape := firstController roassalShape.
+	firstShape color: Color white.
+	firstShape borderColor: Color black.
+	firstShape borderWidth: 1.
+	originalFill := firstShape color.
+	originalBorderColor := firstShape borderColor.
+	originalBorderWidth := firstShape border width.
+
+	highlighter
+		highlightStrokeOfModel: firstElement color: Color green darker width: 2;
+		highlightFillOfModel: firstElement color: Color lightOrange lighter.
+
+	highlighter restoreFillOfModel: firstElement.
+	self assert: firstShape color equals: originalFill.
+	self assert: firstShape borderColor equals: Color green darker.
+	self assert: firstShape border width equals: 2.
+
+	highlighter restoreStrokeOfModel: firstElement.
+	self assert: firstShape borderColor equals: originalBorderColor.
+	self assert: firstShape border width equals: originalBorderWidth
 ]
 
 { #category : 'tests' }

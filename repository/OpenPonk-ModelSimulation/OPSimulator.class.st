@@ -21,7 +21,8 @@ Class {
 		'runProcess',
 		'waitSemaphore',
 		'runGeneration',
-		'stepRunner'
+		'stepRunner',
+		'stepCycleWaiter'
 	],
 	#category : 'OpenPonk-ModelSimulation-Simulators',
 	#package : 'OpenPonk-ModelSimulation',
@@ -98,6 +99,15 @@ OPSimulator >> doAction: anIndex [
 ]
 
 { #category : 'private - actions' }
+OPSimulator >> executeActionsOn: itemsToAct [
+
+	actions withIndexDo: [ :action :index |
+			self announce: (OPSimulatorWillDoAction simulator: self action: action index: index).
+			itemsToAct do: action.
+			self announce: (OPSimulatorDidAction simulator: self action: action index: index) ]
+]
+
+{ #category : 'private - actions' }
 OPSimulator >> executeViaStepRunner: aBlock [
 
 	^ self stepRunner value: aBlock
@@ -131,6 +141,7 @@ OPSimulator >> initialize [
 	shouldRun := false.
 	runGeneration := 0.
 	stepRunner := [ :aBlock | aBlock value ].
+	stepCycleWaiter := [ :elapsedMs :delayMs :aWaitSemaphore | aWaitSemaphore waitTimeoutMilliseconds: delayMs ].
 	self
 		delay: 1000;
 		resetActions;
@@ -210,11 +221,14 @@ OPSimulator >> runLoopForGeneration: aGeneration delayBlock: aDelayBlock maxStep
 	| stepsExecuted |
 	stepsExecuted := 0.
 	[ self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted ] whileTrue: [
+			| stepStartMs elapsedMs |
+			stepStartMs := Time millisecondClockValue.
 			self executeViaStepRunner: [
 				(self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted) ifTrue: [ self step ] ].
 			stepsExecuted := stepsExecuted + 1.
 			(self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted) ifTrue: [
-				aWaitSemaphore waitTimeoutMilliseconds: aDelayBlock value ] ]
+					elapsedMs := Time millisecondsSince: stepStartMs.
+					self stepCycleWaiter value: elapsedMs value: aDelayBlock value value: aWaitSemaphore ] ]
 ]
 
 { #category : 'private - actions' }
@@ -262,16 +276,20 @@ OPSimulator >> step [
 	self isSteppable ifFalse: [ ^ self ].
 	itemsToAct := self itemsForAction.
 	self announce: (OPSimulatorWillStep simulator: self).
-	actions withIndexDo: [ :action :index |
-		self announce:
-			(OPSimulatorWillDoAction
-				 simulator: self
-				 action: action
-				 index: index).
-		itemsToAct do: action.
-		self announce:
-			(OPSimulatorDidAction simulator: self action: action index: index) ].
+	self executeActionsOn: itemsToAct.
 	self announce: (OPSimulatorStepped simulator: self)
+]
+
+{ #category : 'accessing' }
+OPSimulator >> stepCycleWaiter [
+
+	^ stepCycleWaiter
+]
+
+{ #category : 'accessing' }
+OPSimulator >> stepCycleWaiter: aThreeArgBlock [
+
+	stepCycleWaiter := aThreeArgBlock
 ]
 
 { #category : 'accessing' }

@@ -13,7 +13,8 @@ Class {
 		'controlsPresenter',
 		'configurationPresenter',
 		'isConfigurationVisible',
-		'configureButton'
+		'configureButton',
+		'animator'
 	],
 	#category : 'OpenPonk-Simulation-Simulation',
 	#package : 'OpenPonk-Simulation',
@@ -77,6 +78,32 @@ OPSimulationGUI >> addButtons [
 		updateWindowExtent
 ]
 
+{ #category : 'private - hooks' }
+OPSimulationGUI >> afterStepVisualsUpdated [
+	"Subclasses may override to react once step visuals (including any live animation) finish updating."
+
+	
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> animateStepEvent: anEvent onCompleted: aCompletionBlock [
+
+	(animator isNil or: [ session isNil ]) ifTrue: [
+			aCompletionBlock value.
+			^ self ].
+	animator
+		animateTransfers: anEvent transfers
+		delay: session delay
+		isPlaying: session isRunning
+		onCompleted: aCompletionBlock
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> animator [
+
+	^ animator
+]
+
 { #category : 'configuration' }
 OPSimulationGUI >> buildConfigurationPresenter [
 	"Subclasses with configuration override to return a Spec2 presenter (typically an OPSimulationConfigurationGUI subclass)."
@@ -113,6 +140,7 @@ OPSimulationGUI >> closed [
 
 	| activeSession |
 	self class registry unregister: self.
+	animator ifNotNil: [ :activeAnimator | activeAnimator cancel ].
 	highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ].
 	configurationPresenter := nil.
 	isConfigurationVisible := false.
@@ -121,6 +149,7 @@ OPSimulationGUI >> closed [
 	activeSession ifNotNil: [ activeSession close ].
 	diagramController := nil.
 	diagramSimulator := nil.
+	animator := nil.
 	highlighter := nil
 ]
 
@@ -134,10 +163,14 @@ OPSimulationGUI >> configurationPresenter [
 OPSimulationGUI >> connectSessionCallbacks [
 
 	session
-		onWillReload: [ highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ] ];
+		onWillStep: [ animator ifNotNil: [ :activeAnimator | activeAnimator completeImmediately ] ];
+		onCancelVisuals: [ animator ifNotNil: [ :activeAnimator | activeAnimator completeImmediately ] ];
+		onWillReload: [
+				animator ifNotNil: [ :activeAnimator | activeAnimator cancel ].
+				highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ] ];
 		onReloaded: [ self handleReloaded ];
 		onClosed: [ self handleSessionClosed ];
-		onStepped: [ :event | self updateSimulationVisuals ];
+		onStepped: [ :event | self handleSimulatorStepped: event ];
 		onAction: [ :event | self handleSimulatorAction: event ];
 		onReset: [ :event | self handleSimulatorReset: event ];
 		onRunningStateChanged: [ :isRunning | controlsPresenter updateRunningState: isRunning ]
@@ -222,10 +255,19 @@ OPSimulationGUI >> handleSimulatorAction: anActionEvent [
 { #category : 'private - updating' }
 OPSimulationGUI >> handleSimulatorReset: aResetEvent [
 
+	animator ifNotNil: [ :activeAnimator | activeAnimator cancel ].
 	highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ].
 	configurationPresenter ifNotNil: [ :activeConfiguration | activeConfiguration refreshFromSimulator ].
 	controlsPresenter updateRunningState: (session isNotNil and: [ session isRunning ]).
 	self updateSimulationVisuals
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> handleSimulatorStepped: anEvent [
+
+	self animateStepEvent: anEvent onCompleted: [
+			self updateSimulationVisuals.
+			self afterStepVisualsUpdated ]
 ]
 
 { #category : 'testing' }
@@ -259,8 +301,10 @@ OPSimulationGUI >> initializePresenters [
 	controlsPresenter := self instantiate: OPSimulationControlsGUI.
 	controlsPresenter
 		showsDelayControl: self showsDelayControl;
+		showsAnimationControl: self showsAnimationControl;
 		delayOptions: self delayOptions;
-		onDelayChanged: [ :milliseconds | session ifNotNil: [ :activeSession | activeSession delay: milliseconds ] ].
+		onDelayChanged: [ :milliseconds | session ifNotNil: [ :activeSession | activeSession delay: milliseconds ] ];
+		onAnimationToggled: [ :isEnabled | animator ifNotNil: [ :activeAnimator | activeAnimator isEnabled: isEnabled ] ].
 	self refreshLayout
 ]
 
@@ -275,10 +319,13 @@ OPSimulationGUI >> initializeWindow: aWindow [
 
 { #category : 'initialization' }
 OPSimulationGUI >> initializeWithController [
-	"Creates session, highlighter, simulator, and action controls for diagramController."
+	"Creates session, highlighter, animator, simulator, and action controls for diagramController."
 
 	highlighter := OPSimulationHighlighter on: diagramController.
+	animator := OPSimulationAnimator on: diagramController highlighter: highlighter.
+	animator isEnabled: controlsPresenter isAnimationEnabled.
 	session := self sessionClass diagramController: diagramController simulatorClass: self simulatorClass.
+	session stepCompletionWaiter: [ animator ifNotNil: [ :activeAnimator | activeAnimator waitForCompletion ] ].
 	self connectSessionCallbacks.
 	session start.
 	diagramSimulator := session diagramSimulator.
@@ -494,6 +541,12 @@ OPSimulationGUI >> showConfiguration [
 	self
 		refreshLayout;
 		updateWindowExtent
+]
+
+{ #category : 'testing' }
+OPSimulationGUI >> showsAnimationControl [
+
+	^ true
 ]
 
 { #category : 'testing' }

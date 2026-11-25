@@ -14,7 +14,8 @@ Class {
 	#superclass : 'OPModelSimulator',
 	#instVars : [
 		'elements',
-		'simulableElements'
+		'simulableElements',
+		'activeStepTransfers'
 	],
 	#classInstVars : [
 		'ClassMapping'
@@ -174,6 +175,23 @@ OPDiagramSimulator >> model: aDiagram [
 ]
 
 { #category : 'actions' }
+OPDiagramSimulator >> recordStepTransfersDuring: aBlock [
+
+	| previousTransfers recordedTransfers |
+	previousTransfers := activeStepTransfers.
+	recordedTransfers := OrderedCollection new.
+	activeStepTransfers := recordedTransfers.
+	[ aBlock value ] ensure: [ activeStepTransfers := previousTransfers ].
+	^ recordedTransfers asArray
+]
+
+{ #category : 'actions' }
+OPDiagramSimulator >> recordTransfer: aTransfer [
+
+	activeStepTransfers ifNotNil: [ :transfers | transfers add: aTransfer ]
+]
+
+{ #category : 'actions' }
 OPDiagramSimulator >> reset [
 	"Stops playback, restores saved or initial state, and announces reset."
 
@@ -223,6 +241,29 @@ OPDiagramSimulator >> simulatorOf: aModel [
 			  model = aModel
 				  ifTrue: [ self ]
 				  ifFalse: [ self error: aModel asString , ' not found' ] ]
+]
+
+{ #category : 'actions' }
+OPDiagramSimulator >> step [
+	"Executes one diagram step while collecting causal token transfers for the stepped announcement."
+
+	| itemsToAct transfers |
+	self isSteppable ifFalse: [ ^ self ].
+	itemsToAct := self itemsForAction.
+	self announce: (OPSimulatorWillStep simulator: self).
+	transfers := self recordStepTransfersDuring: [ self executeActionsOn: itemsToAct ].
+	self announce: (OPSimulatorStepped simulator: self transfers: transfers)
+]
+
+{ #category : 'actions' }
+OPDiagramSimulator >> stepElement: anElementSimulator [
+	"Executes a single element simulator step while collecting transfers and announcing OPSimulatorStepped."
+
+	| transfers |
+	anElementSimulator isSteppable ifFalse: [ ^ self ].
+	self announce: (OPSimulatorWillStep simulator: self).
+	transfers := self recordStepTransfersDuring: [ anElementSimulator step ].
+	self announce: (OPSimulatorStepped simulator: self transfers: transfers)
 ]
 
 { #category : 'accessing' }
