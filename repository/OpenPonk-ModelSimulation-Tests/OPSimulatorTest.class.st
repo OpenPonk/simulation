@@ -157,6 +157,66 @@ OPSimulatorTest >> testIsFinished [
 ]
 
 { #category : 'tests' }
+OPSimulatorTest >> testIsRunningAndUnsubscribe [
+
+	| stepEvents |
+	self prepareOneSteppable.
+	self deny: simulator isRunning description: 'Fresh simulator must not be running'.
+
+	stepEvents := OrderedCollection new.
+	simulator when: OPSimulatorStepped do: [ :event | stepEvents add: event ] for: self.
+	simulator step.
+	self assert: stepEvents size equals: 1.
+
+	simulator unsubscribe: self.
+	simulator step.
+	self assert: stepEvents size equals: 1
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRapidStopAndRestartDoesNotSpawnConcurrentLoops [
+
+	| firstStepDone secondStepDone stepCount stoppedCount |
+	self prepareOneSteppable.
+	firstStepDone := Semaphore new.
+	secondStepDone := Semaphore new.
+	stepCount := 0.
+	stoppedCount := 0.
+	simulator addAction: [ :item |
+			stepCount := stepCount + 1.
+			stepCount = 1 ifTrue: [ firstStepDone signal ].
+			stepCount = 2 ifTrue: [ secondStepDone signal ] ].
+	simulator when: OPSimulatorStoppedRun do: [ stoppedCount := stoppedCount + 1 ] for: self.
+
+	[
+		simulator delay: 30.
+		simulator repeat.
+		self deny: (firstStepDone waitTimeoutSeconds: 2) description: 'First run must complete its first step'.
+		simulator stop.
+		self assert: stoppedCount equals: 1.
+
+		simulator delay: 5000.
+		simulator repeat.
+		self deny: (secondStepDone waitTimeoutSeconds: 2) description: 'Second run must complete its first step'.
+		(Delay forMilliseconds: 80) wait.
+		self assert: stepCount equals: 2.
+		self assert: stoppedCount equals: 1 ] ensure: [ simulator stop ]
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRepeatDoesNotStartWhenNotSteppable [
+
+	| runEvents |
+	self prepareOneNotSteppable.
+	runEvents := OrderedCollection new.
+	simulator when: OPSimulatorRunEvent do: [ :event | runEvents add: event ] for: self.
+
+	simulator repeat.
+	self deny: simulator isRunning description: 'Non-steppable simulator must not start running on repeat'.
+	self assertEmpty: runEvents
+]
+
+{ #category : 'tests' }
 OPSimulatorTest >> testRepeatOnce [
 
 	| count |
@@ -165,6 +225,59 @@ OPSimulatorTest >> testRepeatOnce [
 	simulator addAction: [ :item | count := count + 1 ].
 	simulator repeatOnce.
 	self assert: count equals: 1
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRepeatReadsDelayDynamically [
+
+	| firstStepDone stepCount |
+	self prepareOneSteppable.
+	firstStepDone := Semaphore new.
+	stepCount := 0.
+	simulator addAction: [ :item |
+			stepCount := stepCount + 1.
+			stepCount = 1 ifTrue: [
+					simulator delay: 5000.
+					firstStepDone signal ] ].
+
+	[
+		simulator delay: 15.
+		simulator repeat.
+		self deny: (firstStepDone waitTimeoutSeconds: 2) description: 'First step must run and raise delay'.
+		(Delay forMilliseconds: 60) wait.
+		self assert: stepCount equals: 1 ] ensure: [ simulator stop ]
+]
+
+{ #category : 'tests' }
+OPSimulatorTest >> testRepeatUsesStepRunnerAndStopsCleanlyWithoutDuplicateStoppedEvent [
+
+	| firstStepDone runnerCalls stoppedCount stepCount |
+	self prepareOneSteppable.
+	firstStepDone := Semaphore new.
+	runnerCalls := 0.
+	stoppedCount := 0.
+	stepCount := 0.
+	simulator addAction: [ :item | stepCount := stepCount + 1 ].
+	simulator stepRunner: [ :aBlock |
+			runnerCalls := runnerCalls + 1.
+			aBlock value.
+			stepCount = 1 ifTrue: [ firstStepDone signal ] ].
+	simulator when: OPSimulatorStoppedRun do: [ stoppedCount := stoppedCount + 1 ] for: self.
+
+	[
+		simulator delay: 5000.
+		simulator repeat.
+		self assert: simulator isRunning description: 'Simulator must report running after repeat starts'.
+		self deny: (firstStepDone waitTimeoutSeconds: 2) description: 'First step must execute through stepRunner'.
+		self assert: stepCount equals: 1.
+		self assert: runnerCalls equals: 1.
+
+		simulator stop.
+		self deny: simulator isRunning description: 'Simulator must report not running immediately after stop'.
+		self assert: stoppedCount equals: 1.
+		(Delay forMilliseconds: 30) wait.
+		self assert: stoppedCount equals: 1.
+		self assert: stepCount equals: 1 ] ensure: [ simulator stop ]
 ]
 
 { #category : 'tests' }

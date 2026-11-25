@@ -118,6 +118,21 @@ OPDiagramSimulatorTest >> testResetClassMapping [
 ]
 
 { #category : 'tests' }
+OPDiagramSimulatorTest >> testResetStopsRestoresStateAndAnnouncesReset [
+
+	| resetEvents |
+	resetEvents := OrderedCollection new.
+	simulator when: OPSimulatorReset do: [ :event | resetEvents add: event ] for: self.
+	simulator saveState.
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 8.
+
+	simulator reset.
+	self assert: (simulator elements sum: [ :each | each state ]) equals: 4.
+	self assert: resetEvents size equals: 1.
+	self assert: resetEvents first simulator identicalTo: simulator
+]
+
+{ #category : 'tests' }
 OPDiagramSimulatorTest >> testSimulatorOf [
 
 	| elementSimulator |
@@ -153,4 +168,30 @@ OPDiagramSimulatorTest >> testStep [
 	simulator elements second steppable: true.
 	simulator step.
 	self assert: (simulator elements sum: [ :each | each state ]) equals: 6
+]
+
+{ #category : 'tests' }
+OPDiagramSimulatorTest >> testUnsubscribeAllUnsubscribesDiagramAndElementSimulators [
+
+	| receivedEvents realElement |
+	receivedEvents := OrderedCollection new.
+	realElement := OPDummySubclassOfOPElementSimulator new
+		               steppable: true;
+		               addAction: [ :item |  ];
+		               yourself.
+	simulator elements
+		removeAll;
+		add: realElement.
+	simulator simulableElements
+		removeAll;
+		add: realElement.
+	simulator
+		fromSteppableElements;
+		addAction: [ :item | item step ].
+	simulator when: OPSimulatorStepped do: [ :event | receivedEvents add: event ] for: self.
+	realElement when: OPSimulatorDidAction do: [ :event | receivedEvents add: event ] for: self.
+
+	simulator unsubscribeAll: self.
+	simulator step.
+	self assertEmpty: receivedEvents
 ]

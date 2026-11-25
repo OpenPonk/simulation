@@ -12,7 +12,8 @@ Class {
 		'editor',
 		'diagramController',
 		'elementController',
-		'simulationGui'
+		'simulationGui',
+		'workbenchAnnouncer'
 	],
 	#category : 'OpenPonk-Simulation-Tests-Simulation',
 	#package : 'OpenPonk-Simulation-Tests',
@@ -42,10 +43,12 @@ OPSimulationGUITest >> setUpDiagramController [
 	projectController := OPProjectController forProject: project.
 	plugin := OPPluginRegistry default plugins detect: [ :eachPlugin | eachPlugin isKindOf: OPTestPlugin ].
 	editor := OPEditor on: plugin.
+	workbenchAnnouncer := Announcer new.
 	diagramController := OPTestDiagramController new.
 	projectController addDiagramController: diagramController.
 	diagramController
 		editor: editor;
+		workbenchAnnouncer: workbenchAnnouncer;
 		canvasPresenter: OPHeadlessCanvasPresenter new;
 		diagramElement: diagram;
 		model: rootModel.
@@ -76,6 +79,7 @@ OPSimulationGUITest >> setUpModel [
 OPSimulationGUITest >> tearDown [
 
 	simulationGui ifNotNil: [ :gui | gui hasWindow ifTrue: [ gui window close ] ].
+	OPSimulationRegistry default closeAll.
 	self currentWorld submorphs
 		select: [ :eachMorph | eachMorph isSystemWindow and: [ (openWindowsBefore includes: eachMorph) not ] ]
 		thenDo: [ :eachWindow | eachWindow delete ].
@@ -83,6 +87,7 @@ OPSimulationGUITest >> tearDown [
 	simulationGui := nil.
 	elementController := nil.
 	diagramController := nil.
+	workbenchAnnouncer := nil.
 	editor := nil.
 	secondElement := nil.
 	firstElement := nil.
@@ -92,34 +97,39 @@ OPSimulationGUITest >> tearDown [
 ]
 
 { #category : 'tests' }
-OPSimulationGUITest >> testButtonItemsAndLayoutForEvenAndOddButtonCounts [
+OPSimulationGUITest >> testButtonItemsAndModularCompositionWithoutMandatoryButtons [
 
-	| buttonItems buttonsByLabel saveCountBefore loadCountBefore |
-	simulationGui := OPTestSimulationGUI diagramController: diagramController.
-	buttonItems := simulationGui buttons.
-	self assert: (buttonItems collect: #label as: Array) equals: #( 'Save state' 'Stop + Load state' ).
-	self assert: simulationGui layout children size equals: 2.
+	| buttonsByLabel saveCountBefore loadCountBefore |
+	simulationGui := OPTestSimulationGUI new
+		                 supportsSavingStateFlag: true;
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	self assert: (simulationGui buttons collect: #label as: Array) equals: #( 'Play' 'Step' 'Reset' 'Save state' 'Configure' ).
+	self assert: simulationGui controlsPresenter layout class identicalTo: SpBoxLayout.
 
-	buttonsByLabel := (buttonItems collect: [ :eachButton | eachButton label -> eachButton ]) asDictionary.
+	buttonsByLabel := (simulationGui buttons collect: [ :eachButton | eachButton label -> eachButton ]) asDictionary.
 	saveCountBefore := simulationGui diagramSimulator saveStateCount.
 	(buttonsByLabel at: 'Save state') performAction.
 	self assert: simulationGui diagramSimulator saveStateCount equals: saveCountBefore + 1.
 
 	loadCountBefore := simulationGui diagramSimulator loadStateCount.
-	(buttonsByLabel at: 'Stop + Load state') performAction.
+	(buttonsByLabel at: 'Reset') performAction.
 	self assert: simulationGui diagramSimulator loadStateCount equals: loadCountBefore + 1.
 
-	simulationGui extraButtonsCount: 1.
+	simulationGui customButtonsBlock: [ :gui |
+			{
+				gui newStepButton.
+				gui newResetButton } ].
 	simulationGui addButtons.
-	self assert: simulationGui buttons size equals: 3.
-	self assert: simulationGui layout children size equals: 4.
-	self assert: simulationGui layout children keys last class identicalTo: SpNullPresenter
+	self assert: (simulationGui buttons collect: #label as: Array) equals: #( 'Step' 'Reset' )
 ]
 
 { #category : 'tests' }
 OPSimulationGUITest >> testCloseClosedWindowMorphAndActivateAreSafeBeforeOpenAndIdempotent [
 
-	| unopenedGui |
+	| unopenedGui activeSession |
 	unopenedGui := OPTestSimulationGUI new.
 	self deny: unopenedGui isOpen description: 'Unopened simulation GUI must not report open'.
 	self assert: unopenedGui windowMorph identicalTo: nil.
@@ -128,17 +138,72 @@ OPSimulationGUITest >> testCloseClosedWindowMorphAndActivateAreSafeBeforeOpenAnd
 	unopenedGui closed.
 
 	simulationGui := OPTestSimulationGUI diagramController: diagramController.
+	activeSession := simulationGui session.
 	self
 		assert:
-		(rootModel announcer subscriptions subscriptions anySatisfy: [ :eachSubscription | eachSubscription subscriber == simulationGui ])
-		description: 'Open simulation GUI must subscribe to model children change announcements'.
+		(rootModel announcer subscriptions subscriptions anySatisfy: [ :eachSubscription | eachSubscription subscriber == activeSession ])
+		description: 'Open simulation GUI session must subscribe to model children change announcements'.
 	simulationGui close.
 	self
 		deny:
-		(rootModel announcer subscriptions subscriptions anySatisfy: [ :eachSubscription | eachSubscription subscriber == simulationGui ])
-		description: 'Closing simulation GUI must unsubscribe from model announcer'.
+		(rootModel announcer subscriptions subscriptions anySatisfy: [ :eachSubscription | eachSubscription subscriber == activeSession ])
+		description: 'Closing simulation GUI must unsubscribe its session from model announcer'.
 	simulationGui closed.
 	self assert: simulationGui diagramController identicalTo: nil
+]
+
+{ #category : 'tests' }
+OPSimulationGUITest >> testConfigurationSidebarToggleReloadAndWindowSizing [
+
+	| compactWidth expandedWidth initialConfig |
+	simulationGui := OPTestSimulationGUI new
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	self deny: simulationGui isConfigurationVisible description: 'Configuration sidebar must start collapsed'.
+	self assert: simulationGui layout class identicalTo: SpBoxLayout.
+	compactWidth := simulationGui preferredExtent x.
+
+	simulationGui toggleConfiguration.
+	self assert: simulationGui isConfigurationVisible description: 'toggleConfiguration must expand sidebar'.
+	self assert: simulationGui layout class identicalTo: SpPanedLayout.
+	initialConfig := simulationGui configurationPresenter.
+	self assert: initialConfig diagramSimulator identicalTo: simulationGui diagramSimulator.
+	expandedWidth := simulationGui preferredExtent x.
+	self assert: expandedWidth > compactWidth description: 'Expanding configuration sidebar must widen window'.
+
+	rootModel add: (OPTestSimulationModel new
+			 name: 'Third';
+			 yourself).
+	self assert: simulationGui isConfigurationVisible description: 'Open configuration sidebar must stay open across reload'.
+	self deny: simulationGui configurationPresenter identicalTo: initialConfig.
+	self assert: simulationGui configurationPresenter diagramSimulator identicalTo: simulationGui diagramSimulator.
+
+	simulationGui hideConfiguration.
+	self deny: simulationGui isConfigurationVisible description: 'hideConfiguration must collapse sidebar'.
+	self assert: simulationGui layout class identicalTo: SpBoxLayout.
+	self assert: simulationGui preferredExtent x equals: compactWidth
+]
+
+{ #category : 'tests' }
+OPSimulationGUITest >> testDelaySelectionPersistsAcrossReloadAndEditorClosedClosesGui [
+
+	| thirdElement |
+	simulationGui := OPTestSimulationGUI diagramController: diagramController.
+	simulationGui controlsPresenter selectDelay: 500.
+	self assert: simulationGui diagramSimulator delay equals: 500.
+
+	thirdElement := OPTestSimulationModel new
+		                name: 'Third';
+		                yourself.
+	rootModel add: thirdElement.
+	self assert: simulationGui diagramSimulator delay equals: 500.
+
+	workbenchAnnouncer announce: (OPEditorClosed on: editor).
+	self deny: simulationGui isOpen description: 'Closing owning editor must close simulation GUI'.
+	self assert: simulationGui diagramController identicalTo: nil.
+	self assertEmpty: OPSimulationRegistry default openGuis
 ]
 
 { #category : 'tests' }
@@ -189,6 +254,30 @@ OPSimulationGUITest >> testInitializeWindowHandlesNamedUnnamedAndUnattachedState
 ]
 
 { #category : 'tests' }
+OPSimulationGUITest >> testPlayPauseToggleAndStepDisableOnRunningStateChange [
+
+	| playPauseButton stepButton |
+	simulationGui := OPTestSimulationGUI diagramController: diagramController.
+	simulationGui session uiDispatcher: [ :aBlock | aBlock value ].
+	playPauseButton := simulationGui buttons detect: [ :each | each label = 'Play' ].
+	stepButton := simulationGui buttons detect: [ :each | each label = 'Step' ].
+	self assert: stepButton isEnabled description: 'Step button must start enabled'.
+
+	simulationGui diagramSimulator
+		delay: 5000;
+		addAction: [ :item | item step ].
+	playPauseButton performAction.
+	self assert: simulationGui session isRunning description: 'Clicking Play must start running simulation'.
+	self assert: playPauseButton label equals: 'Pause'.
+	self deny: stepButton isEnabled description: 'Step button must disable while simulation is running'.
+
+	playPauseButton performAction.
+	self deny: simulationGui session isRunning description: 'Clicking Pause must stop simulation'.
+	self assert: playPauseButton label equals: 'Play'.
+	self assert: stepButton isEnabled description: 'Step button must re-enable after pausing'
+]
+
+{ #category : 'tests' }
 OPSimulationGUITest >> testReloadControllerReactsToMultipleModelChildrenChangedEvents [
 
 	| thirdElement initialSimulator simulatorAfterAdd simulatorAfterRemove |
@@ -230,4 +319,36 @@ OPSimulationGUITest >> testStepSimulatorOfControllerStepsElementAndReturnsGui [
 
 	returnedGui stepSimulatorOfController: elementController.
 	self assert: firstSimulator stepCount equals: 2
+]
+
+{ #category : 'tests' }
+OPSimulationGUITest >> testVisualHooksAndAutomaticHighlightCleanupOnResetReloadAndClose [
+
+	| entityModel entityController entityShape originalColor visualCountAfterLoad |
+	entityModel := OPTestEntityModel new.
+	entityModel instVarNamed: #uuid put: UUID new.
+	entityController := diagramController showInDiagramModel: entityModel.
+	entityShape := entityController roassalShape.
+	originalColor := entityShape color.
+
+	simulationGui := OPTestSimulationGUI diagramController: diagramController.
+	visualCountAfterLoad := simulationGui visualUpdateCount.
+	self assert: visualCountAfterLoad equals: 1.
+
+	simulationGui highlighter highlightFillOfController: entityController color: Color green.
+	self assert: entityShape color equals: Color green.
+	simulationGui session reset.
+	self assert: entityShape color equals: originalColor.
+	self assert: simulationGui visualUpdateCount equals: visualCountAfterLoad + 1.
+
+	simulationGui highlighter highlightFillOfController: entityController color: Color yellow.
+	self assert: entityShape color equals: Color yellow.
+	simulationGui reloadController.
+	self assert: entityShape color equals: originalColor.
+	self assert: simulationGui visualUpdateCount equals: visualCountAfterLoad + 2.
+
+	simulationGui highlighter highlightFillOfController: entityController color: Color orange.
+	self assert: entityShape color equals: Color orange.
+	simulationGui close.
+	self assert: entityShape color equals: originalColor
 ]

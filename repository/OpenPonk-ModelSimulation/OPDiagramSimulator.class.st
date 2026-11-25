@@ -174,6 +174,14 @@ OPDiagramSimulator >> model: aDiagram [
 ]
 
 { #category : 'actions' }
+OPDiagramSimulator >> reset [
+	"Stops playback, restores saved or initial state, and announces reset."
+
+	self loadState.
+	self announce: (OPSimulatorReset simulator: self)
+]
+
+{ #category : 'actions' }
 OPDiagramSimulator >> saveState [
 	"saves state after simulation into model"
 
@@ -243,4 +251,11 @@ OPDiagramSimulator >> tokens [
 	"answers collection of tokens"
 
 	^ elements flatCollect: [ :el | el tokens ]
+]
+
+{ #category : 'announcing' }
+OPDiagramSimulator >> unsubscribeAll: aSubscriber [
+
+	self unsubscribe: aSubscriber.
+	self elementsDo: [ :eachElement | eachElement unsubscribe: aSubscriber ]
 ]

@@ -17,7 +17,11 @@ Class {
 		'shouldRun',
 		'announcer',
 		'actions',
-		'delayInMilliseconds'
+		'delayInMilliseconds',
+		'runProcess',
+		'waitSemaphore',
+		'runGeneration',
+		'stepRunner'
 	],
 	#category : 'OpenPonk-ModelSimulation-Simulators',
 	#package : 'OpenPonk-ModelSimulation',
@@ -47,6 +51,14 @@ OPSimulator >> addFirstAction: block [
 { #category : 'announcing' }
 OPSimulator >> announce: anAnnouncement [
 	announcer announce: anAnnouncement
+]
+
+{ #category : 'private - actions' }
+OPSimulator >> announceRunEvent: anEventClass delay: aDelay maxSteps: aMaxStepsOrNil [
+
+	self announce: (aMaxStepsOrNil
+			 ifNil: [ anEventClass simulator: self delay: aDelay ]
+			 ifNotNil: [ anEventClass simulator: self delay: aDelay repeatTimes: aMaxStepsOrNil ])
 ]
 
 { #category : 'accessing' }
@@ -85,6 +97,22 @@ OPSimulator >> doAction: anIndex [
 	self announce: (OPSimulatorDidAction simulator: self action: action index: anIndex)
 ]
 
+{ #category : 'private - actions' }
+OPSimulator >> executeViaStepRunner: aBlock [
+
+	^ self stepRunner value: aBlock
+]
+
+{ #category : 'private - actions' }
+OPSimulator >> finishRunGeneration: aGeneration delayBlock: aDelayBlock maxSteps: aMaxStepsOrNil [
+
+	runGeneration = aGeneration ifFalse: [ ^ self ].
+	shouldRun := false.
+	runProcess := nil.
+	waitSemaphore := nil.
+	self executeViaStepRunner: [ self announceRunEvent: OPSimulatorStoppedRun delay: aDelayBlock value maxSteps: aMaxStepsOrNil ]
+]
+
 { #category : 'stepping' }
 OPSimulator >> fromSelf [
 	"stepping settings
@@ -98,8 +126,11 @@ OPSimulator >> fromSelf [
 
 { #category : 'initialization' }
 OPSimulator >> initialize [
+
 	super initialize.
 	shouldRun := false.
+	runGeneration := 0.
+	stepRunner := [ :aBlock | aBlock value ].
 	self
 		delay: 1000;
 		resetActions;
@@ -112,6 +143,13 @@ OPSimulator >> isFinished [
 	"is there not any way to step anymore?"
 
 	^ self isSteppable not
+]
+
+{ #category : 'testing' }
+OPSimulator >> isRunning [
+	"Answer whether repeating execution is currently active."
+
+	^ shouldRun
 ]
 
 { #category : 'testing' }
@@ -135,22 +173,9 @@ OPSimulator >> itemsForAction [
 
 { #category : 'actions' }
 OPSimulator >> repeat [
-	"repeats step until finished or stopped, waits for delay between every step"
+	"repeats step until finished or stopped, reading delay before each wait"
 
-	| delay |
-	shouldRun
-		ifTrue: [ ^ self ].	"it is already running"
-	delay := self delay.
-	self announce: (OPSimulatorWillRun simulator: self delay: delay).
-	shouldRun := true.
-	[ 
-	[ shouldRun and: [ self isSteppable ] ]
-		whileTrue: [ 
-			self
-				step;
-				waitFor: delay ].
-	shouldRun := false.
-	self announce: (OPSimulatorStoppedRun simulator: self delay: delay) ] fork
+	self runRepeatingWithDelayBlock: [ self delay ] maxSteps: nil
 ]
 
 { #category : 'actions' }
@@ -162,38 +187,16 @@ OPSimulator >> repeatOnce [
 
 { #category : 'actions' }
 OPSimulator >> repeatTimes: anInteger [
-	"repeats step anInteger times
-	 stops also when finished or stopped
-	 waits for delay between every step"
+	"repeats step anInteger times, stopping early if finished or stopped"
 
-	| delay |
-	shouldRun
-		ifTrue: [ ^ self ].	"it is already running"
-	delay := self delay.
-	self announce: (OPSimulatorWillRun simulator: self delay: delay repeatTimes: anInteger).
-	shouldRun := true.
-	[ 
-	anInteger
-		timesRepeat: [ 
-			(shouldRun not or: [ self isFinished ])
-				ifFalse: [ 
-					self
-						step;
-						waitFor: delay ] ].
-	shouldRun := false.
-	self announce: (OPSimulatorStoppedRun simulator: self delay: delay repeatTimes: anInteger) ] fork
+	self runRepeatingWithDelayBlock: [ self delay ] maxSteps: anInteger
 ]
 
 { #category : 'actions' }
-OPSimulator >> repeatWithDelay: delay [
-	"repeats step until finished or stopped, waits for given time between every step"
+OPSimulator >> repeatWithDelay: aDelay [
+	"repeats step until finished or stopped, waiting aDelay milliseconds between steps"
 
-	| originalDelay |
-	originalDelay := self delay.
-	self
-		delay: delay;
-		repeat;
-		delay: originalDelay
+	self runRepeatingWithDelayBlock: [ aDelay ] maxSteps: nil
 ]
 
 { #category : 'stepping' }
@@ -201,11 +204,54 @@ OPSimulator >> resetActions [
 	actions := OrderedCollection new
 ]
 
+{ #category : 'private - actions' }
+OPSimulator >> runLoopForGeneration: aGeneration delayBlock: aDelayBlock maxSteps: aMaxStepsOrNil waitSemaphore: aWaitSemaphore [
+
+	| stepsExecuted |
+	stepsExecuted := 0.
+	[ self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted ] whileTrue: [
+			self executeViaStepRunner: [
+				(self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted) ifTrue: [ self step ] ].
+			stepsExecuted := stepsExecuted + 1.
+			(self shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: stepsExecuted) ifTrue: [
+				aWaitSemaphore waitTimeoutMilliseconds: aDelayBlock value ] ]
+]
+
+{ #category : 'private - actions' }
+OPSimulator >> runRepeatingWithDelayBlock: aDelayBlock maxSteps: aMaxStepsOrNil [
+
+	| currentGeneration currentWaitSemaphore |
+	shouldRun ifTrue: [ ^ self ].
+	self isSteppable ifFalse: [ ^ self ].
+	(aMaxStepsOrNil isNotNil and: [ aMaxStepsOrNil <= 0 ]) ifTrue: [ ^ self ].
+	runGeneration := (runGeneration ifNil: [ 0 ]) + 1.
+	currentGeneration := runGeneration.
+	currentWaitSemaphore := Semaphore new.
+	waitSemaphore := currentWaitSemaphore.
+	shouldRun := true.
+	self announceRunEvent: OPSimulatorWillRun delay: aDelayBlock value maxSteps: aMaxStepsOrNil.
+	runProcess := [
+		              [
+			              self
+				              runLoopForGeneration: currentGeneration
+				              delayBlock: aDelayBlock
+				              maxSteps: aMaxStepsOrNil
+				              waitSemaphore: currentWaitSemaphore ] ensure: [
+			              self finishRunGeneration: currentGeneration delayBlock: aDelayBlock maxSteps: aMaxStepsOrNil ] ] fork
+]
+
 { #category : 'initialization' }
 OPSimulator >> setDefaultStepping [
 	"sets default stepping settings"
 
 	self fromSelf
+]
+
+{ #category : 'private - actions' }
+OPSimulator >> shouldContinueRun: aGeneration maxSteps: aMaxStepsOrNil executed: aStepCount [
+
+	^ shouldRun and: [
+		  runGeneration = aGeneration and: [ self isSteppable and: [ aMaxStepsOrNil isNil or: [ aStepCount < aMaxStepsOrNil ] ] ] ]
 ]
 
 { #category : 'actions' }
@@ -228,11 +274,40 @@ OPSimulator >> step [
 	self announce: (OPSimulatorStepped simulator: self)
 ]
 
+{ #category : 'accessing' }
+OPSimulator >> stepRunner [
+	"Answer the execution wrapper block used to run each repeated step and final stop notification."
+
+	^ stepRunner ifNil: [ stepRunner := [ :aBlock | aBlock value ] ]
+]
+
+{ #category : 'accessing' }
+OPSimulator >> stepRunner: aBlock [
+	"Set the execution wrapper block (e.g. UI-thread dispatcher) for repeated steps."
+
+	stepRunner := aBlock
+]
+
 { #category : 'actions' }
 OPSimulator >> stop [
-	"terminates running when current step is finished"
+	"Stops repeating execution immediately, waking any active delay wait without interrupting a step."
 
-	shouldRun := false
+	| activeSemaphore stoppedDelay |
+	shouldRun ifFalse: [ ^ self ].
+	stoppedDelay := self delay.
+	shouldRun := false.
+	runGeneration := (runGeneration ifNil: [ 0 ]) + 1.
+	runProcess := nil.
+	activeSemaphore := waitSemaphore.
+	waitSemaphore := nil.
+	activeSemaphore ifNotNil: [ :semaphore | semaphore signal ].
+	self announce: (OPSimulatorStoppedRun simulator: self delay: stoppedDelay)
+]
+
+{ #category : 'announcing' }
+OPSimulator >> unsubscribe: aSubscriber [
+
+	announcer unsubscribe: aSubscriber
 ]
 
 { #category : 'private - actions' }

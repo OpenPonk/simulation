@@ -1,7 +1,5 @@
 "
-Abstract Spec2 presenter bridging a diagram controller with its diagram simulator.
-Provides singleton-like lookup per open diagram controller via #diagramController:, manages simulation control buttons and model child-change reloads, and cleans up subscriptions and saved state when the simulation window closes.
-Subclasses must implement #simulatorClass to return the concrete OPDiagramSimulator subclass and may override #buttonItems and #loadSimulation.
+Abstract top-level Spec2 presenter coordinating a diagram simulation window. Delegates open-instance lookup to OPSimulationRegistry, simulator lifecycle and UI-safe dispatch to OPSimulationSession, diagram shape overlays to OPSimulationHighlighter, and action buttons plus step delay to OPSimulationControlsGUI. Subclasses implement #simulatorClass and may override modular button hooks, visual update hooks, and #buildConfigurationPresenter for an embedded right-side scrollable configuration sidebar.
 "
 Class {
 	#name : 'OPSimulationGUI',
@@ -9,7 +7,13 @@ Class {
 	#instVars : [
 		'diagramSimulator',
 		'diagramController',
-		'buttons'
+		'buttons',
+		'session',
+		'highlighter',
+		'controlsPresenter',
+		'configurationPresenter',
+		'isConfigurationVisible',
+		'configureButton'
 	],
 	#category : 'OpenPonk-Simulation-Simulation',
 	#package : 'OpenPonk-Simulation',
@@ -18,34 +22,37 @@ Class {
 
 { #category : 'instance creation' }
 OPSimulationGUI class >> diagramController: aDiagramController [
-	"answers existing simulatorGUI with aDiagramController or creates new one for it"
+	"Answers existing open simulation GUI for aDiagramController or creates and opens a new one."
 
-	| gui |
-	gui := self allInstances
-		       detect: [ :anyInstance |
-			       anyInstance isOpen and: [
-				       anyInstance diagramController == aDiagramController ] ]
-		       ifNone: [ self newForController: aDiagramController ].
-	gui activate. "causes simulation GUI to get on top of screen"
-	^ gui
+	| simulationGui |
+	simulationGui := self registry guiFor: aDiagramController ifAbsentPut: [ self newForController: aDiagramController ].
+	simulationGui activate.
+	^ simulationGui
 ]
 
 { #category : 'instance creation' }
 OPSimulationGUI class >> newForController: aDiagramController [
+
 	^ self new
-		diagramController: aDiagramController;
-		open;
-		yourself
+		  diagramController: aDiagramController;
+		  open;
+		  yourself
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI class >> registry [
+
+	^ OPSimulationRegistry default
 ]
 
 { #category : 'instance creation' }
 OPSimulationGUI class >> stepSimulatorOfController: anElementController [
-	"answers existing simulatorGUI with aDiagramController or creates new one for it and steps simulator of elementController"
+	"Opens or reuses simulation GUI for anElementController's diagram and steps its simulator."
 
-	| myInstance |
-	myInstance := self diagramController: anElementController diagramController.
-	myInstance stepSimulatorOfController: anElementController.
-	^ myInstance
+	| simulationGui |
+	simulationGui := self diagramController: anElementController diagramController.
+	simulationGui stepSimulatorOfController: anElementController.
+	^ simulationGui
 ]
 
 { #category : 'windows' }
@@ -58,49 +65,104 @@ OPSimulationGUI >> activate [
 { #category : 'adding' }
 OPSimulationGUI >> addButtons [
 
-	buttons := self buttonItems.
-	self initializeLayout.
-	self withWindowDo: [ :window | self initializeWindow: window ]
+	controlsPresenter clearTrackedButtons.
+	configureButton := nil.
+	buttons := self buttonItems asOrderedCollection.
+	controlsPresenter
+		showsDelayControl: self showsDelayControl;
+		buttons: buttons.
+	session ifNotNil: [ :activeSession | controlsPresenter updateRunningState: activeSession isRunning ].
+	self
+		refreshLayout;
+		updateWindowExtent
+]
+
+{ #category : 'configuration' }
+OPSimulationGUI >> buildConfigurationPresenter [
+	"Subclasses with configuration override to return a Spec2 presenter (typically an OPSimulationConfigurationGUI subclass)."
+
+	^ nil
 ]
 
 { #category : 'private - hooks' }
 OPSimulationGUI >> buttonItems [
-	"creates collection of buttons for this GUI"
+	"Builds the default modular action button collection. Subclasses may override capability hooks or override this method completely without super."
 
-	^ OrderedCollection
-		with:
-			((self newButton)
-				label: 'Save state';
-				iconName: #smallSave;
-				help: 'Save current state into model';
-				action: [ self diagramSimulator saveState ])
-		with:
-			((self newButton)
-				label: 'Stop + Load state';
-				iconName: #smallUpdate;
-				help: 'Load state from model from before simulate';
-				action: [ self diagramSimulator loadState ])
+	| items |
+	items := OrderedCollection with: self newPlayPauseButton with: self newStepButton with: self newResetButton.
+	self supportsSavingState ifTrue: [ items add: self newSaveStateButton ].
+	self hasConfiguration ifTrue: [ items add: self newConfigureButton ].
+	items addAll: self extraButtonItems.
+	^ items
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> buttons [
+
+	^ buttons
 ]
 
 { #category : 'windows' }
 OPSimulationGUI >> close [
-	"ends simulation and closes window
-	it ends simulation by event triggered by closing window"
 
-	self withWindowDo: [ :aWindow | aWindow close ]
+	self withWindowDo: [ :aWindow | aWindow isOpen ifTrue: [ aWindow close ] ]
 ]
 
 { #category : 'private - updating' }
 OPSimulationGUI >> closed [
 
-	diagramController ifNotNil: [ self diagramModel announcer unsubscribe: self ].
-	diagramSimulator ifNotNil: [ diagramSimulator loadState ].
+	| activeSession |
+	self class registry unregister: self.
+	highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ].
+	configurationPresenter := nil.
+	isConfigurationVisible := false.
+	activeSession := session.
+	session := nil.
+	activeSession ifNotNil: [ activeSession close ].
 	diagramController := nil.
-	diagramSimulator := nil
+	diagramSimulator := nil.
+	highlighter := nil
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> configurationPresenter [
+
+	^ configurationPresenter
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> connectSessionCallbacks [
+
+	session
+		onWillReload: [ highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ] ];
+		onReloaded: [ self handleReloaded ];
+		onClosed: [ self handleSessionClosed ];
+		onStepped: [ :event | self updateSimulationVisuals ];
+		onAction: [ :event | self handleSimulatorAction: event ];
+		onReset: [ :event | self handleSimulatorReset: event ];
+		onRunningStateChanged: [ :isRunning | controlsPresenter updateRunningState: isRunning ]
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> controlsPresenter [
+
+	^ controlsPresenter
+]
+
+{ #category : 'private - hooks' }
+OPSimulationGUI >> delayOptions [
+
+	^ {
+		  ('0.25 s' -> 250).
+		  ('0.5 s' -> 500).
+		  ('1 s' -> 1000).
+		  ('2 s' -> 2000).
+		  ('5 s' -> 5000) }
 ]
 
 { #category : 'accessing' }
 OPSimulationGUI >> diagramController [
+
 	^ diagramController
 ]
 
@@ -108,35 +170,84 @@ OPSimulationGUI >> diagramController [
 OPSimulationGUI >> diagramController: aDiagramController [
 
 	diagramController := aDiagramController.
-	self application: aDiagramController editor application.
+	aDiagramController editor ifNotNil: [ :editor | self application: editor application ].
 	self initializeWithController
 ]
 
 { #category : 'accessing' }
 OPSimulationGUI >> diagramModel [
-	^ self diagramController model
+
+	^ diagramController ifNotNil: [ :controller | controller model ]
 ]
 
 { #category : 'accessing' }
 OPSimulationGUI >> diagramSimulator [
+
 	^ diagramSimulator
 ]
 
-{ #category : 'building widgets' }
-OPSimulationGUI >> initializeLayout [
+{ #category : 'private - hooks' }
+OPSimulationGUI >> extraButtonItems [
 
-	| items gridLayout counter |
-	gridLayout := SpGridLayout new.
-	items := buttons.
-	buttons size odd ifTrue: [
-		items := items copyWith: SpNullPresenter new ].
-	counter := 0.
-	items pairsDo: [ :odd :even |
-			counter := counter + 1.
-			gridLayout add: odd atPoint: 1 @ counter.
+	^ #(  )
+]
 
-			gridLayout add: even atPoint: 2 @ counter ].
-	self layout: gridLayout
+{ #category : 'private - updating' }
+OPSimulationGUI >> handleReloaded [
+
+	diagramSimulator := session ifNotNil: [ :activeSession | activeSession diagramSimulator ].
+	self loadSimulation.
+	self rebuildConfigurationForReload.
+	controlsPresenter updateRunningState: (session isNotNil and: [ session isRunning ]).
+	self updateSimulationVisuals.
+	self isOpen ifTrue: [ self activate ]
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> handleSessionClosed [
+
+	session ifNil: [ ^ self ].
+	self isOpen
+		ifTrue: [ self close ]
+		ifFalse: [ self closed ]
+]
+
+{ #category : 'private - hooks' }
+OPSimulationGUI >> handleSimulatorAction: anActionEvent [
+	"Subclasses may override to react to element simulator actions on the UI thread."
+
+	
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> handleSimulatorReset: aResetEvent [
+
+	highlighter ifNotNil: [ :activeHighlighter | activeHighlighter clearAll ].
+	configurationPresenter ifNotNil: [ :activeConfiguration | activeConfiguration refreshFromSimulator ].
+	controlsPresenter updateRunningState: (session isNotNil and: [ session isRunning ]).
+	self updateSimulationVisuals
+]
+
+{ #category : 'testing' }
+OPSimulationGUI >> hasConfiguration [
+
+	^ false
+]
+
+{ #category : 'configuration' }
+OPSimulationGUI >> hideConfiguration [
+
+	self isConfigurationVisible ifFalse: [ ^ self ].
+	isConfigurationVisible := false.
+	self
+		refreshLayout;
+		updateWindowExtent
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> highlighter [
+
+	^ highlighter
 ]
 
 { #category : 'initialization' }
@@ -144,29 +255,48 @@ OPSimulationGUI >> initializePresenters [
 
 	super initializePresenters.
 	buttons := OrderedCollection new.
-	self initializeLayout
+	isConfigurationVisible := false.
+	controlsPresenter := self instantiate: OPSimulationControlsGUI.
+	controlsPresenter
+		showsDelayControl: self showsDelayControl;
+		delayOptions: self delayOptions;
+		onDelayChanged: [ :milliseconds | session ifNotNil: [ :activeSession | activeSession delay: milliseconds ] ].
+	self refreshLayout
 ]
 
 { #category : 'initialization' }
 OPSimulationGUI >> initializeWindow: aWindow [
 
 	super initializeWindow: aWindow.
+	aWindow initialExtent: self preferredExtent.
 	diagramController ifNil: [ ^ self ].
-	aWindow initialExtent: 360 @ (buttons size * self class buttonHeight).
 	aWindow title: 'Simulation of ' , (self diagramModel name ifNil: [ '' ])
 ]
 
 { #category : 'initialization' }
 OPSimulationGUI >> initializeWithController [
-	"creates and prepares simulator for current diagramController"
+	"Creates session, highlighter, simulator, and action controls for diagramController."
 
+	highlighter := OPSimulationHighlighter on: diagramController.
+	session := self sessionClass diagramController: diagramController simulatorClass: self simulatorClass.
+	self connectSessionCallbacks.
+	session start.
+	diagramSimulator := session diagramSimulator.
 	self loadSimulation.
-	self whenWindowClosedUnsubscribeFrom: self diagramModel.
-	self subscribeToModel.
-	self addButtons
+	self addButtons.
+	controlsPresenter
+		selectDelay: session delay;
+		updateRunningState: session isRunning.
+	self updateSimulationVisuals
 ]
 
-{ #category : 'windows' }
+{ #category : 'testing' }
+OPSimulationGUI >> isConfigurationVisible [
+
+	^ isConfigurationVisible ifNil: [ false ]
+]
+
+{ #category : 'testing' }
 OPSimulationGUI >> isOpen [
 
 	^ self hasWindow and: [ self window isOpen ]
@@ -174,9 +304,138 @@ OPSimulationGUI >> isOpen [
 
 { #category : 'private - hooks' }
 OPSimulationGUI >> loadSimulation [
-	"prepares simulation - called with every reload"
+	"Prepares simulation state after session loads or reloads the diagram simulator."
 
-	diagramSimulator := self simulatorClass model: self diagramModel
+	diagramSimulator := session
+		                    ifNotNil: [ :activeSession | activeSession diagramSimulator ]
+		                    ifNil: [ self simulatorClass model: self diagramModel ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newButtonLabeled: aLabel iconName: anIconName help: aHelp action: aBlock [
+
+	| button |
+	button := controlsPresenter newButton
+		          label: aLabel;
+		          help: aHelp;
+		          action: aBlock;
+		          yourself.
+	anIconName ifNotNil: [ button iconName: anIconName ].
+	^ button
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newConfigureButton [
+
+	^ self newConfigureButtonLabeled: 'Configure' help: 'Toggle simulation configuration sidebar'
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newConfigureButtonLabeled: aLabel help: aHelp [
+
+	configureButton := self
+		                   newButtonLabeled: aLabel
+		                   iconName: #configuration
+		                   help: aHelp
+		                   action: [ self toggleConfiguration ].
+	^ configureButton
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newPauseButton [
+
+	^ self
+		  newButtonLabeled: 'Pause'
+		  iconName: #testYellow
+		  help: 'Pause simulation'
+		  action: [ self session ifNotNil: [ :activeSession | activeSession pause ] ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newPlayButton [
+
+	^ self
+		  newButtonLabeled: 'Play'
+		  iconName: #smallPrintItIcon
+		  help: 'Play simulation continuously'
+		  action: [ self session ifNotNil: [ :activeSession | activeSession play ] ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newPlayPauseButton [
+
+	^ self
+		  newPlayPauseButtonLabeled: 'Play'
+		  pauseLabel: 'Pause'
+		  playHelp: 'Play simulation continuously'
+		  pauseHelp: 'Pause simulation'
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newPlayPauseButtonLabeled: aPlayLabel pauseLabel: aPauseLabel playHelp: aPlayHelp pauseHelp: aPauseHelp [
+
+	| button |
+	button := self
+		          newButtonLabeled: aPlayLabel
+		          iconName: #smallPrintItIcon
+		          help: aPlayHelp
+		          action: [ self session ifNotNil: [ :activeSession | activeSession togglePlayPause ] ].
+	controlsPresenter registerPlayPauseButton: button configuration: (Dictionary newFrom: {
+				 (#playLabel -> aPlayLabel).
+				 (#pauseLabel -> aPauseLabel).
+				 (#playIcon -> #smallPrintItIcon).
+				 (#pauseIcon -> #testYellow).
+				 (#playHelp -> aPlayHelp).
+				 (#pauseHelp -> aPauseHelp) }).
+	^ button
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newResetButton [
+
+	^ self newResetButtonLabeled: 'Reset' help: 'Stop simulation and restore initial state'
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newResetButtonLabeled: aLabel help: aHelp [
+
+	^ self
+		  newButtonLabeled: aLabel
+		  iconName: #smallUpdate
+		  help: aHelp
+		  action: [ self session ifNotNil: [ :activeSession | activeSession reset ] ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newSaveStateButton [
+
+	^ self
+		  newButtonLabeled: 'Save state'
+		  iconName: #smallSave
+		  help: 'Save current simulation state into model'
+		  action: [ self session ifNotNil: [ :activeSession | activeSession saveState ] ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newStepButton [
+
+	^ self
+		  newStepButtonLabeled: 'Step'
+		  help: 'Step simulation once'
+		  action: [ self session ifNotNil: [ :activeSession | activeSession step ] ]
+]
+
+{ #category : 'button factories' }
+OPSimulationGUI >> newStepButtonLabeled: aLabel help: aHelp action: aBlock [
+
+	| button |
+	button := self
+		          newButtonLabeled: aLabel
+		          iconName: #forwardIcon
+		          help: aHelp
+		          action: aBlock.
+	controlsPresenter registerStepButton: button.
+	^ button
 ]
 
 { #category : 'showing' }
@@ -187,20 +446,82 @@ OPSimulationGUI >> open [
 	self window whenClosedDo: [ self closed ]
 ]
 
-{ #category : 'updating' }
-OPSimulationGUI >> reloadController [
-	"reloads elements from diagramController"
+{ #category : 'accessing' }
+OPSimulationGUI >> preferredExtent [
 
-	| controller |
-	controller := self diagramController.
-	controller ifNil: [ ^ self ].
-	self closed.
-	diagramController := controller.
+	| width height |
+	width := controlsPresenter preferredWidth.
+	height := controlsPresenter preferredHeight + 32.
+	(self isConfigurationVisible and: [ configurationPresenter isNotNil ]) ifTrue: [
+			width := width + 360.
+			height := height max: 260 ].
+	^ width @ height
+]
+
+{ #category : 'private - updating' }
+OPSimulationGUI >> rebuildConfigurationForReload [
+
+	self isConfigurationVisible
+		ifTrue: [
+				configurationPresenter := self buildConfigurationPresenter.
+				configurationPresenter ifNil: [ isConfigurationVisible := false ].
+				self
+					refreshLayout;
+					updateWindowExtent ]
+		ifFalse: [ configurationPresenter := nil ]
+]
+
+{ #category : 'layout' }
+OPSimulationGUI >> refreshLayout [
+
+	self layout: ((self isConfigurationVisible and: [ configurationPresenter isNotNil ])
+			 ifTrue: [
+					 SpPanedLayout newLeftToRight
+						 add: controlsPresenter;
+						 add: (SpScrollableLayout with: configurationPresenter);
+						 positionOfSlider: controlsPresenter preferredWidth;
+						 yourself ]
+			 ifFalse: [
+					 SpBoxLayout newTopToBottom
+						 add: controlsPresenter;
+						 yourself ])
+]
+
+{ #category : 'actions' }
+OPSimulationGUI >> reloadController [
+
+	session ifNotNil: [ :activeSession | activeSession reload ]
+]
+
+{ #category : 'accessing' }
+OPSimulationGUI >> session [
+
+	^ session
+]
+
+{ #category : 'private - hooks' }
+OPSimulationGUI >> sessionClass [
+
+	^ OPSimulationSession
+]
+
+{ #category : 'configuration' }
+OPSimulationGUI >> showConfiguration [
+
+	self hasConfiguration ifFalse: [ ^ self ].
+	configurationPresenter ifNil: [ configurationPresenter := self buildConfigurationPresenter ].
+	configurationPresenter ifNil: [ ^ self ].
+	self isConfigurationVisible ifTrue: [ ^ self ].
+	isConfigurationVisible := true.
 	self
-		loadSimulation;
-		subscribeToModel;
-		open;
-		activate
+		refreshLayout;
+		updateWindowExtent
+]
+
+{ #category : 'testing' }
+OPSimulationGUI >> showsDelayControl [
+
+	^ true
 ]
 
 { #category : 'private - hooks' }
@@ -212,17 +533,35 @@ OPSimulationGUI >> simulatorClass [
 
 { #category : 'actions' }
 OPSimulationGUI >> stepSimulatorOfController: anElementController [
-	"steps simulator of elementController"
 
-	| elementSimulator |
-	elementSimulator := self diagramSimulator simulatorOf: anElementController model.
-	elementSimulator step
+	session ifNotNil: [ :activeSession | activeSession stepElementController: anElementController ]
 ]
 
-{ #category : 'private - updating' }
-OPSimulationGUI >> subscribeToModel [
+{ #category : 'testing' }
+OPSimulationGUI >> supportsSavingState [
 
-	self diagramModel weakWhen: OPModelChildrenChangedEvent send: #reloadController to: self
+	^ false
+]
+
+{ #category : 'configuration' }
+OPSimulationGUI >> toggleConfiguration [
+
+	self isConfigurationVisible
+		ifTrue: [ self hideConfiguration ]
+		ifFalse: [ self showConfiguration ]
+]
+
+{ #category : 'private - hooks' }
+OPSimulationGUI >> updateSimulationVisuals [
+	"Subclasses may override to update diagram highlights after load, step, reset, or reload on the UI thread."
+
+	
+]
+
+{ #category : 'layout' }
+OPSimulationGUI >> updateWindowExtent [
+
+	self withWindowDo: [ :activeWindow | activeWindow isOpen ifTrue: [ activeWindow resize: self preferredExtent ] ]
 ]
 
 { #category : 'accessing' }
