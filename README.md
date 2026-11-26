@@ -1,27 +1,22 @@
 # OpenPonk: Simulation
 
-This is an unofficial extension of [OpenPonk tool](https://openponk.org) that adds base for implementing simulations. 
+[![Nightly](https://github.com/OpenPonk/simulation/actions/workflows/nightly.yml/badge.svg)](https://github.com/OpenPonk/simulation/actions/workflows/nightly.yml) [![Coverage Status](https://coveralls.io/repos/github/OpenPonk/simulation/badge.svg?branch=master)](https://coveralls.io/github/OpenPonk/simulation?branch=master)
 
-When behavior is defined for a metamodel, model could be simulated in a random, user-picked or otherwise defined order.
-Example of usage is https://github.com/OpenPonk/openponk-petrinets
+Discrete-event and step-by-step simulation framework for [OpenPonk](https://openponk.org) models and diagrams. Used by [`borm-editor`](https://github.com/OpenPonk/borm-editor), [`BPMN`](https://github.com/OpenPonk/BPMN), and [`petrinets`](https://github.com/OpenPonk/petrinets).
 
-![example](http://www.mediafire.com/convkey/6324/fed28qgushayde6zg.jpg)
+## Installation
 
-## Installation for usage
+See [openponk.org/#direct-installation](https://openponk.org/#direct-installation) for the supported Pharo version.
 
-Requires Pharo 12.
-
-In Playground, run following code:
-```
+```smalltalk
 Metacello new
-    baseline: 'OpenPonkSimulation';
-    repository: 'github://OpenPonk/simulation';
-    load
+	baseline: 'OpenPonkSimulation';
+	repository: 'github://OpenPonk/simulation';
+	load.
 ```
 
-## Installation for development
+For GUI-independent model simulation only, load `baseline: 'OpenPonkModelSimulation'`.
 
-Requires Pharo 12.
+## Documentation
 
-1. Clone the repository via Git Repositories Browser (Iceberg)
-1. Install default baseline BaselineOfOpenPonkSimulation
+Part of the [OpenPonk](https://openponk.org) platform. For architecture, the repository catalog, and contributing guidelines, see [`OpenPonk/.github`](https://github.com/OpenPonk/.github/blob/main/profile/README.md).
