@@ -30,7 +30,7 @@ OPSimulationAnimatorTest >> setUp [
 	self
 		setUpModel;
 		setUpDiagramController.
-	highlighter := OPSimulationHighlighter on: diagramController.
+	highlighter := OPDiagramHighlighter on: diagramController.
 	highlighter uiDispatcher: [ :aBlock | aBlock value ].
 	animator := OPSimulationAnimator on: diagramController highlighter: highlighter.
 	animator liveAnimationChecker: [ :canvas | canvas isNotNil ]

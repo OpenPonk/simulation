@@ -1,5 +1,5 @@
 "
-Abstract top-level Spec2 presenter coordinating a diagram simulation window. Delegates open-instance lookup to OPSimulationRegistry, simulator lifecycle and UI-safe dispatch to OPSimulationSession, diagram shape overlays to OPSimulationHighlighter, and action buttons plus step delay to OPSimulationControlsGUI. Subclasses implement #simulatorClass and may override modular button hooks, visual update hooks, and #buildConfigurationPresenter for an embedded right-side scrollable configuration sidebar.
+Abstract top-level Spec2 presenter coordinating a diagram simulation window. Delegates open-instance lookup to OPSimulationRegistry, simulator lifecycle and UI-safe dispatch to OPSimulationSession, diagram shape overlays to OPDiagramHighlighter, and action buttons plus step delay to OPSimulationControlsGUI. Subclasses implement #simulatorClass and may override modular button hooks, visual update hooks, and #buildConfigurationPresenter for an embedded right-side scrollable configuration sidebar.
 "
 Class {
 	#name : 'OPSimulationGUI',
@@ -321,7 +321,7 @@ OPSimulationGUI >> initializeWindow: aWindow [
 OPSimulationGUI >> initializeWithController [
 	"Creates session, highlighter, animator, simulator, and action controls for diagramController."
 
-	highlighter := OPSimulationHighlighter on: diagramController.
+	highlighter := OPDiagramHighlighter on: diagramController.
 	animator := OPSimulationAnimator on: diagramController highlighter: highlighter.
 	animator isEnabled: controlsPresenter isAnimationEnabled.
 	session := self sessionClass diagramController: diagramController simulatorClass: self simulatorClass.
