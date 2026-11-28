@@ -369,6 +369,41 @@ OPSimulationGUITest >> testReloadControllerReactsToMultipleModelChildrenChangedE
 ]
 
 { #category : 'tests' }
+OPSimulationGUITest >> testShowConfigurationIdempotencyNilPresenterAndReloadCollapse [
+
+	| initialConfig |
+	simulationGui := OPTestSimulationGUI new
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	simulationGui stub buildConfigurationPresenter willReturn: nil.
+	simulationGui showConfiguration.
+	self deny: simulationGui isConfigurationVisible description: 'showConfiguration must stay collapsed when presenter is nil'.
+	self assert: simulationGui layout class identicalTo: SpBoxLayout.
+	simulationGui close.
+
+	simulationGui := OPTestSimulationGUI new
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	simulationGui showConfiguration.
+	initialConfig := simulationGui configurationPresenter.
+	simulationGui showConfiguration.
+	self assert: simulationGui configurationPresenter identicalTo: initialConfig.
+	self assert: simulationGui isConfigurationVisible description: 'Repeated showConfiguration must remain visible'.
+
+	simulationGui hasConfigurationFlag: false.
+	rootModel add: (OPTestSimulationModel new
+			 name: 'Third';
+			 yourself).
+	self deny: simulationGui isConfigurationVisible description: 'Reload returning nil configuration presenter must collapse sidebar'.
+	self assert: simulationGui configurationPresenter identicalTo: nil.
+	self assert: simulationGui layout class identicalTo: SpBoxLayout
+]
+
+{ #category : 'tests' }
 OPSimulationGUITest >> testStepSimulatorOfControllerStepsElementAndReturnsGui [
 
 	| returnedGui firstSimulator secondSimulator |
@@ -384,6 +419,30 @@ OPSimulationGUITest >> testStepSimulatorOfControllerStepsElementAndReturnsGui [
 
 	returnedGui stepSimulatorOfController: elementController.
 	self assert: firstSimulator stepCount equals: 2
+]
+
+{ #category : 'tests' }
+OPSimulationGUITest >> testUnopenedGuiSessionCloseCleansUpAndResetRefreshesOpenConfiguration [
+
+	| unopenedGui configBefore refreshCountBefore |
+	unopenedGui := OPTestSimulationGUI new
+		               diagramController: diagramController;
+		               yourself.
+	self deny: unopenedGui isOpen description: 'GUI initialized without #open must report not open'.
+	unopenedGui session close.
+	self assert: unopenedGui diagramController identicalTo: nil.
+	self assert: unopenedGui session identicalTo: nil.
+
+	simulationGui := OPTestSimulationGUI new
+		                 hasConfigurationFlag: true;
+		                 diagramController: diagramController;
+		                 open;
+		                 yourself.
+	simulationGui showConfiguration.
+	configBefore := simulationGui configurationPresenter.
+	refreshCountBefore := configBefore refreshCount.
+	simulationGui session reset.
+	self assert: configBefore refreshCount equals: refreshCountBefore + 1
 ]
 
 { #category : 'tests' }

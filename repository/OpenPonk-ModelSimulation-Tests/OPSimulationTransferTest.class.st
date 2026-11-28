@@ -49,6 +49,7 @@ OPSimulationTransferTest >> testDefaultValuesAndFactoryMethods [
 	self assert: fullTransfer hash equals: identicalCopy hash.
 	self deny: fullTransfer equals: differentCopy.
 	self deny: fullTransfer equals: #notATransfer.
+	self deny: #notATransfer equals: fullTransfer.
 
 	self assertEmpty: (OPSimulatorStepped simulator: #sim) transfers.
 	steppedEvent := OPSimulatorStepped simulator: #sim transfers: { fullTransfer }.

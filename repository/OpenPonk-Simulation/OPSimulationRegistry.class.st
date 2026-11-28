@@ -48,7 +48,7 @@ OPSimulationRegistry >> guiFor: aDiagramController ifAbsent: aBlock [
 	| existingGui |
 	existingGui := openGuis at: aDiagramController ifAbsent: [ ^ aBlock value ].
 	existingGui isOpen ifTrue: [ ^ existingGui ].
-	openGuis removeKey: aDiagramController ifAbsent: [ ].
+	openGuis removeKey: aDiagramController.
 	^ aBlock value
 ]
 
@@ -81,7 +81,7 @@ OPSimulationRegistry >> pruneClosedGuis [
 
 	openGuis keys copy
 		reject: [ :eachController | (openGuis at: eachController) isOpen ]
-		thenDo: [ :eachController | openGuis removeKey: eachController ifAbsent: [ ] ]
+		thenDo: [ :eachController | openGuis removeKey: eachController ]
 ]
 
 { #category : 'managing' }
@@ -96,7 +96,7 @@ OPSimulationRegistry >> unregister: aSimulationGui [
 
 	openGuis keys copy
 		select: [ :eachController | (openGuis at: eachController) == aSimulationGui ]
-		thenDo: [ :eachController | openGuis removeKey: eachController ifAbsent: [ ] ]
+		thenDo: [ :eachController | openGuis removeKey: eachController ]
 ]
 
 { #category : 'managing' }

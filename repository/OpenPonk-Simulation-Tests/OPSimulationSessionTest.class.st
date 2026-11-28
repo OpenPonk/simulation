@@ -155,7 +155,7 @@ OPSimulationSessionTest >> testCloseOnEditorClosedUnsubscribesAndIsIdempotent [
 { #category : 'tests' }
 OPSimulationSessionTest >> testDefaultUiDispatcherExecutesOnUiThreadAndCancelsPendingWaits [
 
-	| executedOnUi done |
+	| executedOnUi done inlineOnUi uiDone |
 	session := OPSimulationSession diagramController: diagramController simulatorClass: OPTestSimulationDiagramSimulator.
 	executedOnUi := false.
 	done := Semaphore new.
@@ -165,6 +165,16 @@ OPSimulationSessionTest >> testDefaultUiDispatcherExecutesOnUiThreadAndCancelsPe
 				done signal ] ] fork.
 	self deny: (done waitTimeoutSeconds: 2) description: 'Default UI dispatcher must execute deferred block on UI process'.
 	self assert: executedOnUi description: 'Deferred block must run on the UI process when one is active'.
+
+	inlineOnUi := false.
+	uiDone := Semaphore new.
+	UIManager default defer: [
+			session uiDispatcher value: [ inlineOnUi := true ].
+			uiDone signal ].
+	self
+		deny: (uiDone waitTimeoutSeconds: 2)
+		description: 'Default UI dispatcher invoked on UI process must run inline without deadlocking'.
+	self assert: inlineOnUi description: 'Block dispatched from UI process must execute inline'.
 
 	session start.
 	(session instVarNamed: #pendingStepSemaphores) add: Semaphore new.

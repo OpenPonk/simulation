@@ -72,6 +72,24 @@ OPSimulationControlsGUITest >> testAnimationToggleDefaultsEnabledAndNotifiesCall
 ]
 
 { #category : 'tests' }
+OPSimulationControlsGUITest >> testDelayOptionsPreservesSelectionAndFallsBackToDefaultWhenUnselected [
+
+	controlsGui selectDelay: 500.
+	controlsGui delayOptions: {
+			('0.5 s' -> 500).
+			('1 s' -> 1000) }.
+	self assert: controlsGui selectedDelay equals: 500.
+
+	controlsGui delayOptions: #(  ).
+	self assert: controlsGui selectedDelay identicalTo: nil.
+
+	controlsGui delayOptions: {
+			('0.5 s' -> 500).
+			('1 s' -> 1000) }.
+	self assert: controlsGui selectedDelay equals: 1000
+]
+
+{ #category : 'tests' }
 OPSimulationControlsGUITest >> testDelaySelectionAndPreferredHeightScaling [
 
 	| selectedDelays heightWithDelay heightWithoutDelay |

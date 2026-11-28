@@ -140,6 +140,40 @@ OPSimulationAnimatorTest >> testCancelRemovesOverlaysRestoresHighlightsAndUnbloc
 ]
 
 { #category : 'tests' }
+OPSimulationAnimatorTest >> testDefaultLiveAnimationCheckerRespectsMorphVisibilityAndMissingDiagramElement [
+
+	| defaultAnimator edgeController canvas morph transfer completedCount |
+	defaultAnimator := OPSimulationAnimator on: diagramController highlighter: highlighter.
+	diagramController showInDiagramModel: firstElement.
+	diagramController showInDiagramModel: secondElement.
+	edgeController := diagramController showInDiagramModel: firstEdge.
+	transfer := OPSimulationTransfer source: firstElement edge: firstEdge target: secondElement.
+	canvas := diagramController canvas.
+	morph := canvas createMorph.
+	completedCount := 0.
+	[
+		self currentWorld addMorph: morph.
+		morph hide.
+		defaultAnimator
+			animateTransfers: { transfer }
+			delay: 1000
+			isPlaying: true
+			onCompleted: [ completedCount := completedCount + 1 ].
+		self assert: defaultAnimator activeAnimation identicalTo: nil.
+		self assert: completedCount equals: 1.
+
+		morph show.
+		defaultAnimator animateTransfers: { transfer } delay: 1000 isPlaying: true.
+		self deny: defaultAnimator activeAnimation identicalTo: nil.
+		defaultAnimator cancel ] ensure: [
+			defaultAnimator cancel.
+			morph delete ].
+
+	edgeController removeDiagramElement.
+	self assert: (animator polylinePointsForTransfer: transfer) identicalTo: nil
+]
+
+{ #category : 'tests' }
 OPSimulationAnimatorTest >> testDefaultLiveAnimationCheckerSkipsHeadlessCanvasAndEmptyOrNilEdgeTransfers [
 
 	| defaultAnimator completedCount nilEdgeTransfer |

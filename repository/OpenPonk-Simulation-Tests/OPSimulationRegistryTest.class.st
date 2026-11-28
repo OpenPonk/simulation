@@ -102,5 +102,7 @@ OPSimulationRegistryTest >> testUnregisterControllerPruneClosedAndNilControllerG
 
 	registry unregisterController: controllerA.
 	self assertEmpty: registry openGuis.
+	registry unregisterController: controllerA.
+	self assertEmpty: registry openGuis.
 	self assert: (registry guiFor: controllerA ifAbsent: [ #missing ]) identicalTo: #missing
 ]

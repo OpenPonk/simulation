@@ -223,7 +223,6 @@ OPSimulationControlsGUI >> showsDelayControl: aBoolean [
 OPSimulationControlsGUI >> updatePlayPauseButtonForRunning: isRunning [
 
 	playPauseButton ifNil: [ ^ self ].
-	playPauseConfiguration ifNil: [ ^ self ].
 	isRunning
 		ifTrue: [
 				playPauseButton
